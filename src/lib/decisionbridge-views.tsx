@@ -772,19 +772,30 @@ export function PmChatView() {
     );
   };
 
-  const createTickets = (f: Flow) => {
+  const createTickets = (f: Flow, sourceQuestion: string) => {
+    const persisted = f.tickets.map((t) =>
+      addTicket({
+        title: t[0],
+        assignedTo: t[1],
+        question: t[2],
+        area: f.area,
+        sourceQuestion,
+      }),
+    );
     appendMsg(
       "ai",
       <>
-        <div className="ticket-created">{f.tickets.length} expert ticket(s) created and routed.</div>
+        <div className="ticket-created">
+          {persisted.length} expert ticket(s) created and delivered to their inboxes. Switch to the Expert view to answer them.
+        </div>
         <div className="block">
           <div className="two-col">
-            {f.tickets.map((t, i) => (
-              <div key={i} className="item">
-                <span>Ticket</span>
-                <p><strong>{t[0]}</strong></p>
-                <p>Assigned to: {t[1]}</p>
-                <p>{t[2]}</p>
+            {persisted.map((t) => (
+              <div key={t.id} className="item">
+                <span>Ticket · sent</span>
+                <p><strong>{t.title}</strong></p>
+                <p>Assigned to: {t.assignedTo}</p>
+                <p>{t.question}</p>
               </div>
             ))}
           </div>
@@ -792,6 +803,7 @@ export function PmChatView() {
       </>
     );
   };
+
 
   const exportBrief = (f: Flow) => {
     const text = `DecisionBridge — Decision Brief
