@@ -7,7 +7,10 @@ export function useRole(): AppRole | null {
   const [role, setRoleState] = useState<AppRole | null>(() => getRole());
   useEffect(() => {
     setRoleState(getRole());
-    return subscribe(() => setRoleState(getRole()));
+    const unsub = subscribe(() => setRoleState(getRole()));
+    return () => {
+      unsub();
+    };
   }, []);
   return role;
 }
