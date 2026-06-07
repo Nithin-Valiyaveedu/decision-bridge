@@ -766,7 +766,7 @@ export function PmChatView() {
           </div>
         </div>
         <div className="action-row">
-          <button className="action-btn" onClick={() => createTickets(f)}>Create expert tickets</button>
+          <button className="action-btn" onClick={() => createTickets(f, lastQuestionRef.current)}>Create expert tickets</button>
         </div>
       </>
     );
