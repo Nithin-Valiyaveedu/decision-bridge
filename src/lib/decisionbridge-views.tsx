@@ -929,3 +929,113 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
     </section>
   );
 }
+
+function ExpertSelector({
+  f,
+  sourceQuestion,
+  onCreated,
+}: {
+  f: Flow;
+  sourceQuestion: string;
+  onCreated: (persisted: Ticket[]) => void;
+}) {
+  const defaultSelected = new Set<string>(f.tickets.map((t) => t[1]));
+  const [selected, setSelected] = useState<Set<string>>(defaultSelected);
+  const [questions, setQuestions] = useState<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    for (const e of f.experts) {
+      const match = f.tickets.find((t) => t[1] === e[0]);
+      map[e[0]] = match
+        ? match[2]
+        : `Re: "${sourceQuestion}" — please share your perspective from your ${e[1]} expertise.`;
+    }
+    return map;
+  });
+  const [sent, setSent] = useState(false);
+
+  const toggle = (name: string) => {
+    const next = new Set(selected);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    setSelected(next);
+  };
+
+  const submit = () => {
+    if (selected.size === 0 || sent) return;
+    const persisted: Ticket[] = [];
+    for (const e of f.experts) {
+      if (!selected.has(e[0])) continue;
+      const match = f.tickets.find((t) => t[1] === e[0]);
+      persisted.push(
+        addTicket({
+          title: match ? match[0] : `Input needed: ${f.area}`,
+          assignedTo: e[0],
+          question: questions[e[0]],
+          area: f.area,
+          sourceQuestion,
+        }),
+      );
+    }
+    setSent(true);
+    onCreated(persisted);
+  };
+
+  return (
+    <>
+      <p><strong>Recommended experts — select who to route this question to</strong></p>
+      <div className="block">
+        <div className="two-col">
+          {f.experts.map((e, i) => {
+            const isSel = selected.has(e[0]);
+            return (
+              <div key={i} className={`item expert-card ${isSel ? "selected" : ""}`}>
+                <label className="expert-pick">
+                  <input
+                    type="checkbox"
+                    checked={isSel}
+                    disabled={sent}
+                    onChange={() => toggle(e[0])}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <h4>{e[0]}</h4>
+                    <p><strong>{e[1]}</strong></p>
+                    <p>{e[2]}</p>
+                    <div>
+                      <span className="tag green">{e[3]}</span>{" "}
+                      <span className="tag orange">{e[4]}</span>
+                    </div>
+                  </div>
+                </label>
+                {isSel && (
+                  <div style={{ marginTop: 8 }}>
+                    <label className="muted" style={{ fontSize: 12 }}>Question for {e[0].split(" ")[0]}</label>
+                    <textarea
+                      className="expert-question"
+                      value={questions[e[0]]}
+                      disabled={sent}
+                      onChange={(ev) =>
+                        setQuestions({ ...questions, [e[0]]: ev.target.value })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="action-row">
+        <button
+          className="action-btn"
+          onClick={submit}
+          disabled={selected.size === 0 || sent}
+        >
+          {sent
+            ? "Tickets sent"
+            : selected.size === 0
+              ? "Select at least one expert"
+              : `Send ticket${selected.size === 1 ? "" : "s"} to ${selected.size} expert${selected.size === 1 ? "" : "s"}`}
+        </button>
+      </div>
+    </>
+  );
+}
