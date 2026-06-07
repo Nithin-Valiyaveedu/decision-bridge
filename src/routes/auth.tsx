@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { DEMO_ACCOUNTS, getRole, setRole, type AppRole } from "@/lib/local-auth";
+import { useEffect } from "react";
+import { getRole, setRole, type AppRole } from "@/lib/local-auth";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -16,25 +16,11 @@ const roleHome: Record<AppRole, "/admin" | "/expert" | "/pm"> = {
 
 function AuthPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const r = getRole();
     if (r) router.navigate({ to: roleHome[r], replace: true });
   }, [router]);
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const acct = DEMO_ACCOUNTS[username.trim().toLowerCase()];
-    if (!acct || acct.password !== password) {
-      setError("Invalid credentials. Try one of the demo accounts below.");
-      return;
-    }
-    setRole(acct.role);
-    router.navigate({ to: roleHome[acct.role], replace: true });
-  };
 
   const quickPick = (role: AppRole) => {
     setRole(role);
@@ -52,16 +38,7 @@ function AuthPage() {
             </div>
           </header>
           <section className="view">
-            <form onSubmit={submit} className="panel">
-              <label>Username</label>
-              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin / expert / pm" />
-              <label>Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="same as username" />
-              {error && <div className="notice" style={{ color: "#b00020" }}>{error}</div>}
-              <button type="submit">Sign in</button>
-            </form>
-
-            <div className="panel" style={{ marginTop: 16 }}>
+            <div className="panel">
               <p style={{ marginTop: 0, fontWeight: 600 }}>Quick demo access</p>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button type="button" onClick={() => quickPick("admin")}>Enter as Admin</button>
