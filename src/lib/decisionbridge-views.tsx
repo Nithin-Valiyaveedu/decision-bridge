@@ -1028,17 +1028,20 @@ function ExpertSelector({
           })}
         </div>
       </div>
-      <div className="action-row">
+      <div className="action-row expert-send-row">
+        <span className="muted" style={{ fontSize: 13, alignSelf: "center" }}>
+          {selected.size} of {f.experts.length} expert{f.experts.length === 1 ? "" : "s"} selected
+        </span>
         <button
-          className="action-btn"
+          className="action-btn expert-send-btn"
           onClick={submit}
           disabled={selected.size === 0 || sent}
         >
           {sent
-            ? "Tickets sent"
+            ? "✓ Tickets sent"
             : selected.size === 0
               ? "Select at least one expert"
-              : `Send ticket${selected.size === 1 ? "" : "s"} to ${selected.size} expert${selected.size === 1 ? "" : "s"}`}
+              : `📨 Send ticket${selected.size === 1 ? "" : "s"} to ${selected.size} expert${selected.size === 1 ? "" : "s"}`}
         </button>
       </div>
     </>
