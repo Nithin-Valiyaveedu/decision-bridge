@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { extractKnowledge } from "@/lib/extract-knowledge.functions";
+import { addKnowledge, useKnowledge, type Knowledge } from "@/lib/knowledge-store";
 import {
   adminPeople,
   categoryMap,
@@ -9,42 +10,108 @@ import {
   type Person,
 } from "@/lib/decisionbridge-data";
 
-type Knowledge = {
-  area: string;
-  expert: string;
-  text: string;
-  source: string;
-  confidence: string;
+type ScoreBreakdown = {
+  evidence: { value: number; max: number; note: string };
+  agreement: { value: number; max: number; note: string };
+  recency: { value: number; max: number; note: string };
 };
 
 type Flow = Category & {
   found: boolean;
   key: string;
   score: number;
+  breakdown: ScoreBreakdown;
   evidence: [string, string, string, string][];
+  businessImpact: string;
+  missingInfo: string[];
+  actions: string[];
+  expertsConsulted: string[];
 };
 
 type ChatMsg = { type: "ai" | "user"; node: ReactNode; id: number };
+
+const businessImpactByArea: Record<string, string> = {
+  "Supplier approval": "Approving Supplier B unlocks ~3 weeks of time-to-market and an estimated €120k in tooling savings, but locks production to a single source until backup qualification completes.",
+  "Manufacturing defect": "Every additional day of elevated defect rate adds ~€18k in scrap and risks one customer audit finding. Stopping the line costs ~€40k/day in lost output.",
+  "Pilot batch shipment": "Shipping on time protects the lead customer milestone (€2.1M follow-on order). A 1-week slip risks contractual penalty and erodes customer trust.",
+  "Packaging material change": "New material reduces unit packaging cost by ~8% but may delay certification by 4–6 weeks if reliability tests fail.",
+  "New testing process": "Faster test cycle could lift line throughput by ~12% but a quality escape would expose us to warranty claims worth ~€500k.",
+};
+
+const missingInfoByArea: Record<string, string[]> = {
+  "Supplier approval": ["Final thermal cycling result (Reliability)", "Buffer-stock plan for first 8 weeks (Supply Chain)"],
+  "Manufacturing defect": ["Confirmed root-cause statement", "Quality-gate impact assessment"],
+  "Pilot batch shipment": ["Signed quality-gate release", "Confirmed shipping window from customer"],
+  "Packaging material change": ["PLM change-control approval", "Long-term reliability test results", "Customer notification status"],
+  "New testing process": ["Test repeatability study", "PLM formal change approval", "Customer quality acceptance"],
+};
 
 function buildFlow(question: string, kb: Knowledge[]): Flow {
   const key = classify(question);
   const base = categoryMap[key];
   const matching = kb.filter((k) => k.area === base.area);
   const found = matching.length > 0;
-  const evidence: [string, string, string, string][] = found
+
+  // Score breakdown
+  const evidenceMax = 40;
+  const evidence = Math.min(evidenceMax, matching.length * 18);
+  const agreementMax = 30;
+  const uniqueExperts = new Set(matching.map((m) => m.expert)).size;
+  const agreement = Math.min(agreementMax, uniqueExperts * 18);
+  const recencyMax = 30;
+  const newest = matching.reduce((a, b) => Math.max(a, b.createdAt), 0);
+  const daysOld = newest ? (Date.now() - newest) / 86400000 : 999;
+  const recency = newest ? (daysOld < 30 ? 30 : daysOld < 90 ? 20 : 10) : 0;
+  const score = found ? evidence + agreement + recency : 36;
+
+  const breakdown: ScoreBreakdown = {
+    evidence: {
+      value: evidence,
+      max: evidenceMax,
+      note: matching.length
+        ? `${matching.length} approved entr${matching.length === 1 ? "y" : "ies"} in the knowledge base.`
+        : "No approved expert knowledge yet.",
+    },
+    agreement: {
+      value: agreement,
+      max: agreementMax,
+      note: uniqueExperts
+        ? `${uniqueExperts} expert${uniqueExperts === 1 ? "" : "s"} contributed.`
+        : "No expert has confirmed yet.",
+    },
+    recency: {
+      value: found ? recency : 0,
+      max: recencyMax,
+      note: newest
+        ? daysOld < 30
+          ? "Knowledge added in the last 30 days."
+          : daysOld < 90
+            ? "Knowledge between 30–90 days old."
+            : "Knowledge is older than 90 days — consider refreshing."
+        : "No recent expert input.",
+    },
+  };
+
+  const evidenceRows: [string, string, string, string][] = found
     ? matching.map((k) => [
-        `${k.area} expert knowledge`,
+        k.text.slice(0, 140) + (k.text.length > 140 ? "…" : ""),
         k.source,
         k.expert,
         k.confidence.replace(" confidence", ""),
       ])
-    : [["No approved expert knowledge found", "DecisionBridge Knowledge Index", "DecisionBridge AI", "Low"]];
+    : [["No approved expert knowledge found", "DecisionBridge Knowledge Index", "—", "Low"]];
+
   return {
     ...base,
     found,
     key,
-    score: found ? (key === "defect" ? 68 : 72) : 36,
-    evidence,
+    score: Math.round(score),
+    breakdown,
+    evidence: evidenceRows,
+    businessImpact: businessImpactByArea[base.area] || "Business impact not yet estimated.",
+    missingInfo: missingInfoByArea[base.area] || [],
+    actions: [base.next, ...(found ? [] : ["Route open questions to recommended experts and create tickets."])],
+    expertsConsulted: found ? Array.from(new Set(matching.map((m) => m.expert))) : [],
   };
 }
 
@@ -119,7 +186,7 @@ export function AdminView() {
 }
 
 export function ExpertView() {
-  const [kb, setKb] = useState<Knowledge[]>([]);
+  const kb = useKnowledge();
   const [expertName, setExpertName] = useState("Dr. Lukas Müller · Reliability Expert");
   const [knowledgeArea, setKnowledgeArea] = useState("Supplier approval");
   const [transcript, setTranscript] = useState("");
@@ -208,14 +275,13 @@ export function ExpertView() {
     if (imageFileName) sources.push(`Notes image: ${imageFileName}`);
     if (!sources.length) sources.push(draft.sourceLabel || "Expert manual entry");
 
-    const entry: Knowledge = {
+    addKnowledge({
       area: knowledgeArea,
       expert: expertName.split(" · ")[0],
       text: body,
       source: sources.join(" · "),
       confidence,
-    };
-    setKb((k) => [entry, ...k]);
+    });
     setDraft(null);
     setTranscript("");
     setTranscriptFileName("");
@@ -231,7 +297,7 @@ export function ExpertView() {
         <div className="panel">
           <h2>Capture expert knowledge from meetings</h2>
           <p className="muted">
-            Upload a meeting transcript or a photo of handwritten notes. The AI drafts a knowledge entry that you can review, edit with additional insights, and approve.
+            Upload a meeting transcript or a photo of handwritten notes. The AI drafts a knowledge entry that you can review, edit with additional insights, and approve. Approved entries are immediately available to Project Managers.
           </p>
           <div className="form-grid">
             <div>
@@ -250,7 +316,7 @@ export function ExpertView() {
                 <option>Supplier approval</option>
                 <option>Manufacturing defect</option>
                 <option>Pilot batch shipment</option>
-                <option>Material change</option>
+                <option>Packaging material change</option>
                 <option>New testing process</option>
               </select>
             </div>
@@ -343,12 +409,13 @@ export function ExpertView() {
         </div>
         <aside className="side-info">
           <h3>Knowledge currently available</h3>
+          <p className="muted">Shared with all PMs in this workspace.</p>
           {kb.length === 0 ? (
             <div className="empty-box">No expert knowledge added yet.</div>
           ) : (
             <div className="knowledge-feed">
-              {kb.map((k, i) => (
-                <div key={i} className="knowledge-row">
+              {kb.map((k) => (
+                <div key={k.id} className="knowledge-row">
                   <strong>{k.area}</strong>
                   <span style={{ whiteSpace: "pre-wrap" }}>{k.expert}: {k.text}</span>
                   <span>Source: {k.source} · {k.confidence}</span>
@@ -362,15 +429,106 @@ export function ExpertView() {
   );
 }
 
+function ScoreBreakdownPanel({ f }: { f: Flow }) {
+  const rows = [
+    { label: "Evidence depth", ...f.breakdown.evidence },
+    { label: "Expert agreement", ...f.breakdown.agreement },
+    { label: "Knowledge recency", ...f.breakdown.recency },
+  ];
+  const gap = 100 - f.score;
+  return (
+    <div className="score-breakdown">
+      <h4>Why this score?</h4>
+      <p className="muted">The Decision Readiness Score combines three signals. Here's how today's question scored:</p>
+      <table className="breakdown-table">
+        <tbody>
+          {rows.map((r) => {
+            const pct = Math.round((r.value / r.max) * 100);
+            const status = pct >= 80 ? "ok" : pct >= 40 ? "warn" : "low";
+            return (
+              <tr key={r.label}>
+                <td><strong>{r.label}</strong><div className="muted breakdown-note">{r.note}</div></td>
+                <td className="breakdown-bar-cell">
+                  <div className="breakdown-bar"><div className={`breakdown-bar-fill ${status}`} style={{ width: `${pct}%` }} /></div>
+                </td>
+                <td className="breakdown-val">{r.value}/{r.max}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {gap > 0 && (
+        <p className="muted">
+          <strong>To raise the score:</strong>{" "}
+          {!f.found
+            ? "ask an expert in this area to capture their knowledge — even one approved entry will move the score significantly."
+            : f.breakdown.agreement.value < f.breakdown.agreement.max
+              ? "get a second expert to confirm the existing knowledge."
+              : "refresh the knowledge — newer expert input increases recency confidence."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DecisionStoryGraph({ f }: { f: Flow }) {
+  const experts = (f.expertsConsulted.length ? f.expertsConsulted : f.experts.slice(0, 2).map((e) => e[0])).slice(0, 3);
+  return (
+    <div className="story-graph">
+      <h4>Decision story</h4>
+      <p className="muted">From expert input to final recommendation — every step traceable.</p>
+      <div className="story-cols">
+        <div className="story-col">
+          <div className="story-col-title">Experts</div>
+          {experts.map((e, i) => (
+            <div key={i} className="story-node node-expert"><strong>{e}</strong></div>
+          ))}
+        </div>
+        <div className="story-arrow">→</div>
+        <div className="story-col">
+          <div className="story-col-title">Technical finding</div>
+          <div className="story-node node-finding">{f.technical}</div>
+        </div>
+        <div className="story-arrow">→</div>
+        <div className="story-col">
+          <div className="story-col-title">Business impact</div>
+          <div className="story-node node-impact">{f.businessImpact}</div>
+        </div>
+        <div className="story-arrow">→</div>
+        <div className="story-col">
+          <div className="story-col-title">Action</div>
+          <div className="story-node node-action">{f.next}</div>
+        </div>
+        <div className="story-arrow">→</div>
+        <div className="story-col">
+          <div className="story-col-title">Recommendation</div>
+          <div className="story-node node-reco"><strong>{f.recommendation}</strong></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const STARTER_QUESTIONS = [
+  "Can we approve Supplier B for Power Module X?",
+  "What caused the defect increase on Line 3?",
+  "Should we ship the pilot batch this week?",
+  "Can we change the packaging material on Product X?",
+];
+
 export function PmChatView() {
+  const kb = useKnowledge();
+  const kbRef = useRef(kb);
+  kbRef.current = kb;
+
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       id: 0,
       type: "ai",
       node: (
         <>
-          <p><strong>Hello, ask a project decision question in your own words.</strong></p>
-          <p>I will first check the expert knowledge base. If an answer already exists, I will give you a decision brief with evidence. If not, I will show the right experts and create tickets.</p>
+          <p><strong>Hello — ask a project decision question in your own words.</strong></p>
+          <p>I check the expert knowledge base first. If an answer already exists, I give you a decision brief with a full evidence chain. If not, I show the right experts and create tickets.</p>
         </>
       ),
     },
@@ -378,7 +536,6 @@ export function PmChatView() {
   const [projectName, setProjectName] = useState("Power Module X");
   const [question, setQuestion] = useState("");
   const [pmFiles, setPmFiles] = useState<string[]>([]);
-  const kb: Knowledge[] = [];
   const msgIdRef = useRef(1);
   const chatRef = useRef<HTMLDivElement>(null);
 
@@ -400,7 +557,7 @@ export function PmChatView() {
         <p><strong>Knowledge search completed.</strong></p>
         <p>{f.found ? "I found approved expert knowledge for this decision." : "I did not find approved expert knowledge. Expert input is needed."}</p>
         <table className="evidence-table">
-          <thead><tr><th>Finding</th><th>Source</th><th>Owner</th><th>Confidence</th></tr></thead>
+          <thead><tr><th>Finding</th><th>Source</th><th>Expert</th><th title="How sure are we? High = multiple recent expert confirmations.">Confidence ⓘ</th></tr></thead>
           <tbody>{f.evidence.map((e, i) => (
             <tr key={i}><td><strong>{e[0]}</strong></td><td>{e[1]}</td><td>{e[2]}</td><td>{e[3]}</td></tr>
           ))}</tbody>
@@ -416,7 +573,7 @@ export function PmChatView() {
     const deg = Math.round((f.score / 100) * 360);
     const msg = f.found
       ? "Decision is possible with conditions. Existing expert knowledge supports the recommendation."
-      : "Decision is not ready yet. The PM should collect expert input before deciding.";
+      : "Decision is not ready yet. Collect expert input before deciding.";
     appendMsg(
       "ai",
       <>
@@ -429,6 +586,7 @@ export function PmChatView() {
             <p>{msg}</p>
           </div>
         </div>
+        <ScoreBreakdownPanel f={f} />
         <div className="action-row">
           {f.found ? (
             <button className="action-btn" onClick={() => showDecisionBrief(f)}>Create decision brief</button>
@@ -445,14 +603,44 @@ export function PmChatView() {
       "ai",
       <>
         <p><strong>Decision Brief</strong></p>
-        <div className="block">
-          <p><strong>Recommendation:</strong> {f.recommendation}</p>
-          <p><strong>Main reason:</strong> {f.reason}</p>
-          <p><strong>Main risk:</strong> {f.risk}</p>
-          <p><strong>Next step:</strong> {f.next}</p>
+        <DecisionStoryGraph f={f} />
+        <div className="brief-grid">
+          <div className="brief-card brief-reco">
+            <span className="brief-tag">Final recommendation</span>
+            <p><strong>{f.recommendation}</strong></p>
+            <p className="muted">{f.reason}</p>
+          </div>
+          <div className="brief-card">
+            <span className="brief-tag">Business impact</span>
+            <p>{f.businessImpact}</p>
+          </div>
+          <div className="brief-card brief-risk">
+            <span className="brief-tag">Risk</span>
+            <p>{f.risk}</p>
+          </div>
+          <div className="brief-card brief-missing">
+            <span className="brief-tag">Missing information</span>
+            {f.missingInfo.length ? (
+              <ul className="brief-list">{f.missingInfo.map((m, i) => <li key={i}>{m}</li>)}</ul>
+            ) : <p className="muted">No critical gaps identified.</p>}
+          </div>
+          <div className="brief-card brief-actions">
+            <span className="brief-tag">Recommended actions</span>
+            <ul className="brief-list">{f.actions.map((a, i) => <li key={i}>{a}</li>)}</ul>
+          </div>
+          <div className="brief-card">
+            <span className="brief-tag">Experts consulted</span>
+            {f.expertsConsulted.length ? (
+              <div className="expert-avatars">
+                {f.expertsConsulted.map((e, i) => (
+                  <div key={i} className="expert-avatar"><span>{e.split(" ").map((s) => s[0]).slice(0, 2).join("")}</span><small>{e}</small></div>
+                ))}
+              </div>
+            ) : <p className="muted">No experts have contributed yet for this decision.</p>}
+          </div>
         </div>
         <div className="block">
-          <h4>Expert + Evidence Traceability</h4>
+          <h4>Evidence traceability</h4>
           <table className="evidence-table">
             <thead><tr><th>Evidence</th><th>Source</th><th>Expert / Owner</th><th>Confidence</th></tr></thead>
             <tbody>{f.evidence.map((e, i) => (
@@ -519,21 +707,30 @@ export function PmChatView() {
   };
 
   const exportBrief = (f: Flow) => {
-    const text = `DecisionBridge - Decision Brief
+    const text = `DecisionBridge — Decision Brief
 
 Project: ${projectName}
 Decision type: ${f.foundTitle}
-Recommendation: ${f.recommendation}
+Final recommendation: ${f.recommendation}
 Readiness Score: ${f.score}%
 
-Main reason:
+Reason:
 ${f.reason}
 
-Main risk:
+Business impact:
+${f.businessImpact}
+
+Risk:
 ${f.risk}
 
-Next step:
-${f.next}
+Missing information:
+${f.missingInfo.map((m) => `- ${m}`).join("\n") || "- None identified"}
+
+Recommended actions:
+${f.actions.map((a) => `- ${a}`).join("\n")}
+
+Experts consulted:
+${f.expertsConsulted.map((e) => `- ${e}`).join("\n") || "- (none yet)"}
 
 Evidence:
 ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confidence: ${e[3]}`).join("\n")}`;
@@ -548,13 +745,8 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
     URL.revokeObjectURL(url);
   };
 
-  const sendQuestion = () => {
-    const q = question.trim();
-    if (!q) {
-      alert("Please type a decision question.");
-      return;
-    }
-    const flow = buildFlow(q, kb);
+  const ask = (q: string) => {
+    const flow = buildFlow(q, kbRef.current);
     setProjectName(flow.project);
     appendMsg("user", <p>{q}</p>);
     setQuestion("");
@@ -584,10 +776,21 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
     }, 350);
   };
 
+  const sendQuestion = () => {
+    const q = question.trim();
+    if (!q) {
+      alert("Please type a decision question.");
+      return;
+    }
+    ask(q);
+  };
+
   const fileText = useMemo(
     () => (pmFiles.length ? "Attached: " + pmFiles.join(", ") : "No files attached. DecisionBridge will use the expert knowledge base."),
     [pmFiles]
   );
+
+  const showStarters = messages.length === 1;
 
   return (
     <section className="view pm-view">
@@ -598,6 +801,21 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
             <div className="bubble">{m.node}</div>
           </div>
         ))}
+        {showStarters && (
+          <div className="starter-chips">
+            <div className="starter-label">Try a starter question:</div>
+            <div className="starter-row">
+              {STARTER_QUESTIONS.map((q) => (
+                <button key={q} className="starter-chip" onClick={() => ask(q)}>{q}</button>
+              ))}
+            </div>
+            <div className="kb-status">
+              {kb.length > 0
+                ? `${kb.length} approved expert knowledge entr${kb.length === 1 ? "y" : "ies"} available.`
+                : "No expert knowledge captured yet — ask anyway and I'll route you to the right experts."}
+            </div>
+          </div>
+        )}
       </section>
       <section className="composer">
         <div className="meta-row">
