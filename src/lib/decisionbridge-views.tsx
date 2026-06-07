@@ -747,61 +747,32 @@ export function PmChatView() {
   const showExperts = (f: Flow) => {
     appendMsg(
       "ai",
-      <>
-        <p><strong>Recommended experts in this project workspace</strong></p>
-        <div className="block">
-          <div className="two-col">
-            {f.experts.map((e, i) => (
-              <div key={i} className="item expert-card">
-                <div>
-                  <h4>{e[0]}</h4>
-                  <p><strong>{e[1]}</strong></p>
-                  <p>{e[2]}</p>
-                </div>
-                <div>
-                  <span className="tag green">{e[3]}</span><br /><br />
-                  <span className="tag orange">{e[4]}</span>
+      <ExpertSelector
+        f={f}
+        sourceQuestion={lastQuestionRef.current}
+        onCreated={(persisted) => {
+          appendMsg(
+            "ai",
+            <>
+              <div className="ticket-created">
+                {persisted.length} expert ticket(s) created and delivered to their inboxes. Switch to the Expert view to answer them.
+              </div>
+              <div className="block">
+                <div className="two-col">
+                  {persisted.map((t) => (
+                    <div key={t.id} className="item">
+                      <span>Ticket · sent</span>
+                      <p><strong>{t.title}</strong></p>
+                      <p>Assigned to: {t.assignedTo}</p>
+                      <p>{t.question}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-        <div className="action-row">
-          <button className="action-btn" onClick={() => createTickets(f, lastQuestionRef.current)}>Create expert tickets</button>
-        </div>
-      </>
-    );
-  };
-
-  const createTickets = (f: Flow, sourceQuestion: string) => {
-    const persisted = f.tickets.map((t) =>
-      addTicket({
-        title: t[0],
-        assignedTo: t[1],
-        question: t[2],
-        area: f.area,
-        sourceQuestion,
-      }),
-    );
-    appendMsg(
-      "ai",
-      <>
-        <div className="ticket-created">
-          {persisted.length} expert ticket(s) created and delivered to their inboxes. Switch to the Expert view to answer them.
-        </div>
-        <div className="block">
-          <div className="two-col">
-            {persisted.map((t) => (
-              <div key={t.id} className="item">
-                <span>Ticket · sent</span>
-                <p><strong>{t.title}</strong></p>
-                <p>Assigned to: {t.assignedTo}</p>
-                <p>{t.question}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </>
+            </>,
+          );
+        }}
+      />,
     );
   };
 
