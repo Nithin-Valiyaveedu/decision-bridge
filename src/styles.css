@@ -474,3 +474,5 @@
 .expert-select-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .expert-select-btn.selected { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
 .expert-select-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.expert-send-row { justify-content: space-between; align-items: center; padding: 12px 14px; margin-top: 14px; background: #f0f6ff; border: 1px solid #c7d7f4; border-radius: 14px; position: sticky; bottom: 8px; z-index: 5; box-shadow: 0 6px 18px -8px rgba(23,70,162,0.35); }
+.expert-send-btn { font-size: 15px !important; padding: 12px 20px !important; box-shadow: 0 4px 14px -4px rgba(23,70,162,0.5); }
