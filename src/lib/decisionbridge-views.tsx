@@ -939,7 +939,9 @@ function ExpertSelector({
   sourceQuestion: string;
   onCreated: (persisted: Ticket[]) => void;
 }) {
-  const defaultSelected = new Set<string>(f.tickets.map((t) => t[1]));
+  const defaultSelected = f.tickets.length > 0
+    ? new Set<string>(f.tickets.map((t) => t[1]))
+    : new Set<string>(f.experts.map((e) => e[0]));
   const [selected, setSelected] = useState<Set<string>>(defaultSelected);
   const [questions, setQuestions] = useState<Record<string, string>>(() => {
     const map: Record<string, string> = {};
