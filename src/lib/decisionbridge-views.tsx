@@ -195,8 +195,39 @@ export function AdminView() {
 }
 
 export function ExpertView() {
+  const [expertName, setExpertName] = useState(EXPERTS[0]);
+  const [tab, setTab] = useState<"capture" | "tickets">("capture");
+  const tickets = useTickets();
+  const myName = expertName.split(" · ")[0];
+  const myOpen = tickets.filter((t) => t.assignedTo === myName && t.status === "open").length;
+
+  return (
+    <section className="view">
+      <div className="expert-toolbar">
+        <div className="expert-id">
+          <label>Signed in as</label>
+          <select value={expertName} onChange={(e) => setExpertName(e.target.value)}>
+            {EXPERTS.map((n) => <option key={n}>{n}</option>)}
+          </select>
+        </div>
+        <div className="expert-tabs">
+          <button className={`expert-tab ${tab === "capture" ? "active" : ""}`} onClick={() => setTab("capture")}>
+            Capture knowledge
+          </button>
+          <button className={`expert-tab ${tab === "tickets" ? "active" : ""}`} onClick={() => setTab("tickets")}>
+            My tickets{myOpen > 0 && <span className="tab-badge">{myOpen}</span>}
+          </button>
+        </div>
+      </div>
+      {tab === "capture"
+        ? <ExpertCapturePanel expertName={expertName} />
+        : <ExpertTicketsPanel expertName={expertName} myName={myName} />}
+    </section>
+  );
+}
+
+function ExpertCapturePanel({ expertName }: { expertName: string }) {
   const kb = useKnowledge();
-  const [expertName, setExpertName] = useState("Dr. Lukas Müller · Reliability Expert");
   const [knowledgeArea, setKnowledgeArea] = useState("Supplier approval");
   const [transcript, setTranscript] = useState("");
   const [transcriptFileName, setTranscriptFileName] = useState("");
@@ -224,11 +255,7 @@ export function ExpertView() {
   };
 
   const onImageFile = (file: File | undefined) => {
-    if (!file) {
-      setImageDataUrl("");
-      setImageFileName("");
-      return;
-    }
+    if (!file) { setImageDataUrl(""); setImageFileName(""); return; }
     setImageFileName(file.name);
     const reader = new FileReader();
     reader.onload = () => setImageDataUrl(String(reader.result || ""));
@@ -248,20 +275,10 @@ export function ExpertView() {
       let imageMimeType: string | undefined;
       if (imageDataUrl) {
         const match = /^data:(.+?);base64,(.*)$/.exec(imageDataUrl);
-        if (match) {
-          imageMimeType = match[1];
-          imageBase64 = match[2];
-        }
+        if (match) { imageMimeType = match[1]; imageBase64 = match[2]; }
       }
       const result = await runExtract({
-        data: {
-          knowledgeArea,
-          expertName,
-          transcript,
-          additionalInsights,
-          imageBase64,
-          imageMimeType,
-        },
+        data: { knowledgeArea, expertName, transcript, additionalInsights, imageBase64, imageMimeType },
       });
       setDraft(result);
       setConfidence(result.recommendedConfidence);
@@ -292,149 +309,206 @@ export function ExpertView() {
       confidence,
     });
     setDraft(null);
-    setTranscript("");
-    setTranscriptFileName("");
+    setTranscript(""); setTranscriptFileName("");
     setAdditionalInsights("");
-    setImageDataUrl("");
-    setImageFileName("");
+    setImageDataUrl(""); setImageFileName("");
     setExpertNotice("Knowledge added. PM decision chat can now reuse this knowledge.");
   };
 
   return (
-    <section className="view">
-      <div className="split-layout">
-        <div className="panel">
-          <h2>Capture expert knowledge from meetings</h2>
-          <p className="muted">
-            Upload a meeting transcript or a photo of handwritten notes. The AI drafts a knowledge entry that you can review, edit with additional insights, and approve. Approved entries are immediately available to Project Managers.
-          </p>
-          <div className="form-grid">
-            <div>
-              <label>Expert name</label>
-              <select value={expertName} onChange={(e) => setExpertName(e.target.value)}>
-                <option>Dr. Lukas Müller · Reliability Expert</option>
-                <option>Anna Weber · Supplier Qualification Expert</option>
-                <option>Markus Klein · Supply Chain Expert</option>
-                <option>Thomas Richter · Quality Expert</option>
-                <option>Maria Hoffmann · Manufacturing Expert</option>
-              </select>
-            </div>
-            <div>
-              <label>Knowledge area</label>
-              <select value={knowledgeArea} onChange={(e) => setKnowledgeArea(e.target.value)}>
-                <option>Supplier approval</option>
-                <option>Manufacturing defect</option>
-                <option>Pilot batch shipment</option>
-                <option>Packaging material change</option>
-                <option>New testing process</option>
-              </select>
-            </div>
+    <div className="split-layout">
+      <div className="panel">
+        <h2>Capture expert knowledge from meetings</h2>
+        <p className="muted">
+          Upload a meeting transcript or a photo of handwritten notes. The AI drafts a knowledge entry that you can review, edit with additional insights, and approve. Approved entries are immediately available to Project Managers.
+        </p>
+        <div className="form-grid">
+          <div>
+            <label>Knowledge area</label>
+            <select value={knowledgeArea} onChange={(e) => setKnowledgeArea(e.target.value)}>
+              <option>Supplier approval</option>
+              <option>Manufacturing defect</option>
+              <option>Pilot batch shipment</option>
+              <option>Packaging material change</option>
+              <option>New testing process</option>
+            </select>
           </div>
-
-          <label>Meeting transcript</label>
-          <textarea
-            className="large-text"
-            placeholder="Paste meeting transcript here, or attach a .txt file below..."
-            value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-          />
-          <div className="form-grid">
-            <div>
-              <label>Attach transcript file</label>
-              <label className="attach-btn wide-attach" htmlFor="transcriptFile">Attach .txt transcript</label>
-              <input
-                id="transcriptFile"
-                type="file"
-                accept=".txt,text/plain,.md"
-                className="hidden-input"
-                onChange={(e) => onTranscriptFile(e.target.files?.[0])}
-              />
-              <div className="file-text">{transcriptFileName ? "Attached: " + transcriptFileName : "No transcript file."}</div>
-            </div>
-            <div>
-              <label>Attach handwritten notes (image)</label>
-              <label className="attach-btn wide-attach" htmlFor="notesImage">Attach photo of notes</label>
-              <input
-                id="notesImage"
-                type="file"
-                accept="image/*"
-                className="hidden-input"
-                onChange={(e) => onImageFile(e.target.files?.[0])}
-              />
-              <div className="file-text">{imageFileName ? "Attached: " + imageFileName : "No image attached."}</div>
-              {imageDataUrl && (
-                <img src={imageDataUrl} alt="notes preview" className="notes-preview" />
-              )}
-            </div>
+          <div>
+            <label>Confidence</label>
+            <select value={confidence} onChange={(e) => setConfidence(e.target.value)}>
+              <option>High confidence</option>
+              <option>Medium confidence</option>
+              <option>Low confidence</option>
+            </select>
           </div>
-
-          <label>Additional expert insights (optional)</label>
-          <textarea
-            className="large-text"
-            placeholder="Add anything the transcript or notes miss — context, caveats, decisions..."
-            value={additionalInsights}
-            onChange={(e) => setAdditionalInsights(e.target.value)}
-          />
-
-          <div className="form-grid">
-            <div>
-              <label>Confidence</label>
-              <select value={confidence} onChange={(e) => setConfidence(e.target.value)}>
-                <option>High confidence</option>
-                <option>Medium confidence</option>
-                <option>Low confidence</option>
-              </select>
-            </div>
-            <div style={{ display: "flex", alignItems: "flex-end" }}>
-              <button onClick={generate} disabled={isGenerating}>
-                {isGenerating ? "Generating..." : "Generate knowledge with AI"}
-              </button>
-            </div>
-          </div>
-
-          {error && <div className="notice" style={{ background: "#fdecec", color: "#a02020" }}>{error}</div>}
-
-          {draft && (
-            <div className="block draft-block">
-              <h3>AI-drafted knowledge entry</h3>
-              <p><strong>Summary:</strong> {draft.summary}</p>
-              {draft.keyPoints.length > 0 && (
-                <>
-                  <p><strong>Key points:</strong></p>
-                  <ul>
-                    {draft.keyPoints.map((p, i) => <li key={i}>{p}</li>)}
-                  </ul>
-                </>
-              )}
-              <p className="muted">Suggested source: {draft.sourceLabel} · Suggested confidence: {draft.recommendedConfidence}</p>
-              <div className="action-row">
-                <button onClick={acceptDraft}>Add to knowledge base</button>
-                <button className="action-btn secondary" onClick={() => setDraft(null)}>Discard draft</button>
-              </div>
-            </div>
-          )}
-
-          {expertNotice && <div className="notice">{expertNotice}</div>}
         </div>
-        <aside className="side-info">
-          <h3>Knowledge currently available</h3>
-          <p className="muted">Shared with all PMs in this workspace.</p>
-          {kb.length === 0 ? (
-            <div className="empty-box">No expert knowledge added yet.</div>
-          ) : (
-            <div className="knowledge-feed">
-              {kb.map((k) => (
-                <div key={k.id} className="knowledge-row">
-                  <strong>{k.area}</strong>
-                  <span style={{ whiteSpace: "pre-wrap" }}>{k.expert}: {k.text}</span>
-                  <span>Source: {k.source} · {k.confidence}</span>
-                </div>
-              ))}
+
+        <label>Meeting transcript</label>
+        <textarea
+          className="large-text"
+          placeholder="Paste meeting transcript here, or attach a .txt file below..."
+          value={transcript}
+          onChange={(e) => setTranscript(e.target.value)}
+        />
+        <div className="form-grid">
+          <div>
+            <label>Attach transcript file</label>
+            <label className="attach-btn wide-attach" htmlFor="transcriptFile">Attach .txt transcript</label>
+            <input id="transcriptFile" type="file" accept=".txt,text/plain,.md" className="hidden-input"
+              onChange={(e) => onTranscriptFile(e.target.files?.[0])} />
+            <div className="file-text">{transcriptFileName ? "Attached: " + transcriptFileName : "No transcript file."}</div>
+          </div>
+          <div>
+            <label>Attach handwritten notes (image)</label>
+            <label className="attach-btn wide-attach" htmlFor="notesImage">Attach photo of notes</label>
+            <input id="notesImage" type="file" accept="image/*" className="hidden-input"
+              onChange={(e) => onImageFile(e.target.files?.[0])} />
+            <div className="file-text">{imageFileName ? "Attached: " + imageFileName : "No image attached."}</div>
+            {imageDataUrl && <img src={imageDataUrl} alt="notes preview" className="notes-preview" />}
+          </div>
+        </div>
+
+        <label>Additional expert insights (optional)</label>
+        <textarea
+          className="large-text"
+          placeholder="Add anything the transcript or notes miss — context, caveats, decisions..."
+          value={additionalInsights}
+          onChange={(e) => setAdditionalInsights(e.target.value)}
+        />
+
+        <div className="action-row">
+          <button onClick={generate} disabled={isGenerating}>
+            {isGenerating ? "Generating..." : "Generate knowledge with AI"}
+          </button>
+        </div>
+
+        {error && <div className="notice" style={{ background: "#fdecec", color: "#a02020" }}>{error}</div>}
+
+        {draft && (
+          <div className="block draft-block">
+            <h3>AI-drafted knowledge entry</h3>
+            <p><strong>Summary:</strong> {draft.summary}</p>
+            {draft.keyPoints.length > 0 && (
+              <>
+                <p><strong>Key points:</strong></p>
+                <ul>{draft.keyPoints.map((p, i) => <li key={i}>{p}</li>)}</ul>
+              </>
+            )}
+            <p className="muted">Suggested source: {draft.sourceLabel} · Suggested confidence: {draft.recommendedConfidence}</p>
+            <div className="action-row">
+              <button onClick={acceptDraft}>Add to knowledge base</button>
+              <button className="action-btn secondary" onClick={() => setDraft(null)}>Discard draft</button>
             </div>
-          )}
-        </aside>
+          </div>
+        )}
+
+        {expertNotice && <div className="notice">{expertNotice}</div>}
       </div>
-    </section>
+      <aside className="side-info">
+        <h3>Knowledge currently available</h3>
+        <p className="muted">Shared with all PMs in this workspace.</p>
+        {kb.length === 0 ? (
+          <div className="empty-box">No expert knowledge added yet.</div>
+        ) : (
+          <div className="knowledge-feed">
+            {kb.map((k) => (
+              <div key={k.id} className="knowledge-row">
+                <strong>{k.area}</strong>
+                <span style={{ whiteSpace: "pre-wrap" }}>{k.expert}: {k.text}</span>
+                <span>Source: {k.source} · {k.confidence}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function ExpertTicketsPanel({ expertName, myName }: { expertName: string; myName: string }) {
+  const tickets = useTickets();
+  const mine = tickets.filter((t) => t.assignedTo === myName);
+  const open = mine.filter((t) => t.status === "open");
+  const answered = mine.filter((t) => t.status === "answered");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [notice, setNotice] = useState("");
+
+  const send = (t: Ticket) => {
+    const answer = (drafts[t.id] || "").trim();
+    if (!answer) { setNotice("Write an answer first."); return; }
+    answerTicket(t.id, answer);
+    addKnowledge({
+      area: t.area,
+      expert: myName,
+      text: `Response to PM question "${t.sourceQuestion}":\n\n${answer}`,
+      source: `Expert ticket reply · ${t.title}`,
+      confidence: "High confidence",
+    });
+    setDrafts((d) => ({ ...d, [t.id]: "" }));
+    setNotice(`Sent. PMs asking about "${t.area}" now see your answer in the knowledge base.`);
+  };
+
+  return (
+    <div className="single-layout">
+      <div className="panel">
+        <h2>My tickets</h2>
+        <p className="muted">
+          PMs route questions here when no expert knowledge exists yet. Your answer is delivered back to the PM and saved to the knowledge base for the next decision.
+        </p>
+        {notice && <div className="notice">{notice}</div>}
+
+        <h3>Open · {open.length}</h3>
+        {open.length === 0 ? (
+          <div className="empty-box">No open tickets for {expertName.split(" · ")[0]}. Switch personas above to see other inboxes.</div>
+        ) : (
+          <div className="ticket-list">
+            {open.map((t) => (
+              <div key={t.id} className="ticket-card">
+                <div className="ticket-head">
+                  <div>
+                    <span className="ticket-pill open">Open</span>
+                    <strong>{t.title}</strong>
+                  </div>
+                  <span className="ticket-meta">{new Date(t.createdAt).toLocaleString()}</span>
+                </div>
+                <p className="ticket-q"><strong>PM asked:</strong> "{t.sourceQuestion}"</p>
+                <p className="muted">{t.question}</p>
+                <textarea
+                  className="large-text"
+                  placeholder="Type your expert answer..."
+                  value={drafts[t.id] || ""}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [t.id]: e.target.value }))}
+                />
+                <div className="action-row">
+                  <button onClick={() => send(t)}>Send answer & publish to knowledge base</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <h3>Answered · {answered.length}</h3>
+        {answered.length === 0 ? (
+          <div className="empty-box">No answered tickets yet.</div>
+        ) : (
+          <div className="ticket-list">
+            {answered.map((t) => (
+              <div key={t.id} className="ticket-card answered">
+                <div className="ticket-head">
+                  <div>
+                    <span className="ticket-pill done">Answered</span>
+                    <strong>{t.title}</strong>
+                  </div>
+                  <span className="ticket-meta">{t.answeredAt ? new Date(t.answeredAt).toLocaleString() : ""}</span>
+                </div>
+                <p className="ticket-q"><strong>PM asked:</strong> "{t.sourceQuestion}"</p>
+                <p style={{ whiteSpace: "pre-wrap" }}><strong>Your answer:</strong> {t.answer}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
