@@ -1,29 +1,16 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getRole, subscribe, type AppRole } from "./local-auth";
 
-export type AppRole = "admin" | "expert" | "pm";
+export type { AppRole };
 
-export function useRoles() {
-  const [roles, setRoles] = useState<AppRole[] | null>(null);
-
+export function useRole(): AppRole | null {
+  const [role, setRoleState] = useState<AppRole | null>(() => getRole());
   useEffect(() => {
-    let active = true;
-    (async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) {
-        if (active) setRoles([]);
-        return;
-      }
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userData.user.id);
-      if (active) setRoles(((data ?? []).map((r) => r.role)) as AppRole[]);
-    })();
+    setRoleState(getRole());
+    const unsub = subscribe(() => setRoleState(getRole()));
     return () => {
-      active = false;
+      unsub();
     };
   }, []);
-
-  return roles;
+  return role;
 }
