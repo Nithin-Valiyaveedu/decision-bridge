@@ -847,6 +847,7 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
 
   const ask = (q: string) => {
     const flow = buildFlow(q, kbRef.current);
+    lastQuestionRef.current = q;
     setProjectName(flow.project);
     appendMsg("user", <p>{q}</p>);
     setQuestion("");
