@@ -217,3 +217,40 @@
 .db-root .tag.orange{color:#a14b00;background:#fff5ea}
 .db-root .ticket-created{background:#ecfdf3;color:#087443;border:1px solid #abefc6;border-radius:14px;padding:12px;font-weight:850;margin-top:12px}
 @media(max-width:900px){.db-root .shell{padding:0}.db-root .app-card{height:100vh;min-height:0;border-radius:0}.db-root .app-header{flex-direction:column;align-items:stretch}.db-root .tabs{overflow-x:auto}.db-root .split-layout,.db-root .two-col,.db-root .meta-row,.db-root .input-row,.db-root .form-grid{grid-template-columns:1fr}.db-root .bubble{max-width:100%}}
+
+/* Auth & role-based nav */
+.db-root .app-nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 28px;
+  background: #ffffff;
+  border-bottom: 1px solid #e7eefb;
+  max-width: 1200px;
+  margin: 0 auto 12px;
+  border-radius: 0 0 12px 12px;
+}
+.db-root .app-nav nav {
+  display: flex;
+  gap: 18px;
+  flex: 1;
+}
+.db-root .app-nav nav a {
+  color: #1746a2;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.db-root .app-nav nav a.active {
+  background: #1746a2;
+  color: #fff;
+}
+.db-root .sign-out-btn {
+  background: #f2f4f8;
+  color: #1746a2;
+  border: 1px solid #d9e2f3;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
