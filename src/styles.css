@@ -468,3 +468,9 @@
 .expert-pick input[type="checkbox"] { margin-top: 4px; }
 .expert-question { width: 100%; min-height: 60px; padding: 8px; border-radius: 6px; border: 1px solid var(--border); font: inherit; resize: vertical; }
 .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.expert-pick-header { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.expert-select-btn { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--background); cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; transition: all 0.15s; }
+.expert-select-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.expert-select-btn.selected { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.expert-select-btn:disabled { opacity: 0.6; cursor: not-allowed; }
