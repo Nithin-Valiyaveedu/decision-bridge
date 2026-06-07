@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { extractKnowledge } from "@/lib/extract-knowledge.functions";
 import { addKnowledge, useKnowledge, type Knowledge } from "@/lib/knowledge-store";
+import { addTicket, answerTicket, useTickets, type Ticket } from "@/lib/ticket-store";
 import {
   adminPeople,
   categoryMap,
@@ -9,6 +10,14 @@ import {
   type Category,
   type Person,
 } from "@/lib/decisionbridge-data";
+
+const EXPERTS = [
+  "Dr. Lukas Müller · Reliability Expert",
+  "Anna Weber · Supplier Qualification Expert",
+  "Markus Klein · Supply Chain Expert",
+  "Thomas Richter · Quality Expert",
+  "Maria Hoffmann · Manufacturing Expert",
+];
 
 type ScoreBreakdown = {
   evidence: { value: number; max: number; note: string };
