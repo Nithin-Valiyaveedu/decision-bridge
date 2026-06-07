@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { extractKnowledge } from "@/lib/extract-knowledge.functions";
 import {
   adminPeople,
   categoryMap,
@@ -120,33 +122,117 @@ export function ExpertView() {
   const [kb, setKb] = useState<Knowledge[]>([]);
   const [expertName, setExpertName] = useState("Dr. Lukas Müller · Reliability Expert");
   const [knowledgeArea, setKnowledgeArea] = useState("Supplier approval");
-  const [expertText, setExpertText] = useState("");
+  const [transcript, setTranscript] = useState("");
+  const [transcriptFileName, setTranscriptFileName] = useState("");
+  const [additionalInsights, setAdditionalInsights] = useState("");
+  const [imageDataUrl, setImageDataUrl] = useState<string>("");
+  const [imageFileName, setImageFileName] = useState("");
   const [confidence, setConfidence] = useState("High confidence");
-  const [expertFileName, setExpertFileName] = useState("");
   const [expertNotice, setExpertNotice] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [draft, setDraft] = useState<null | {
+    summary: string;
+    keyPoints: string[];
+    recommendedConfidence: string;
+    sourceLabel: string;
+  }>(null);
+  const [error, setError] = useState("");
 
-  const addKnowledge = () => {
-    if (!expertText.trim()) {
-      alert("Please add expert knowledge first.");
+  const runExtract = useServerFn(extractKnowledge);
+
+  const onTranscriptFile = async (file: File | undefined) => {
+    if (!file) return;
+    setTranscriptFileName(file.name);
+    const text = await file.text();
+    setTranscript((prev) => (prev ? prev + "\n\n" + text : text));
+  };
+
+  const onImageFile = (file: File | undefined) => {
+    if (!file) {
+      setImageDataUrl("");
+      setImageFileName("");
       return;
     }
+    setImageFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => setImageDataUrl(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  };
+
+  const generate = async () => {
+    setError("");
+    if (!transcript.trim() && !imageDataUrl && !additionalInsights.trim()) {
+      setError("Add a transcript, an image of notes, or additional insights first.");
+      return;
+    }
+    setIsGenerating(true);
+    setDraft(null);
+    try {
+      let imageBase64: string | undefined;
+      let imageMimeType: string | undefined;
+      if (imageDataUrl) {
+        const match = /^data:(.+?);base64,(.*)$/.exec(imageDataUrl);
+        if (match) {
+          imageMimeType = match[1];
+          imageBase64 = match[2];
+        }
+      }
+      const result = await runExtract({
+        data: {
+          knowledgeArea,
+          expertName,
+          transcript,
+          additionalInsights,
+          imageBase64,
+          imageMimeType,
+        },
+      });
+      setDraft(result);
+      setConfidence(result.recommendedConfidence);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to generate knowledge.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const acceptDraft = () => {
+    if (!draft) return;
+    const body =
+      draft.summary +
+      (draft.keyPoints.length ? "\n\nKey points:\n- " + draft.keyPoints.join("\n- ") : "") +
+      (additionalInsights.trim() ? "\n\nExpert insights:\n" + additionalInsights.trim() : "");
+    const sources: string[] = [];
+    if (transcriptFileName) sources.push(`Transcript: ${transcriptFileName}`);
+    else if (transcript.trim()) sources.push("Pasted transcript");
+    if (imageFileName) sources.push(`Notes image: ${imageFileName}`);
+    if (!sources.length) sources.push(draft.sourceLabel || "Expert manual entry");
+
     const entry: Knowledge = {
       area: knowledgeArea,
       expert: expertName.split(" · ")[0],
-      text: expertText.trim(),
-      source: expertFileName || "Expert manual entry",
+      text: body,
+      source: sources.join(" · "),
       confidence,
     };
     setKb((k) => [entry, ...k]);
-    setExpertText("");
-    setExpertNotice("Expert knowledge added. PM decision chat can now reuse this knowledge.");
+    setDraft(null);
+    setTranscript("");
+    setTranscriptFileName("");
+    setAdditionalInsights("");
+    setImageDataUrl("");
+    setImageFileName("");
+    setExpertNotice("Knowledge added. PM decision chat can now reuse this knowledge.");
   };
 
   return (
     <section className="view">
       <div className="split-layout">
         <div className="panel">
-          <h2>Technical expert adds knowledge</h2>
+          <h2>Capture expert knowledge from meetings</h2>
+          <p className="muted">
+            Upload a meeting transcript or a photo of handwritten notes. The AI drafts a knowledge entry that you can review, edit with additional insights, and approve.
+          </p>
           <div className="form-grid">
             <div>
               <label>Expert name</label>
@@ -169,25 +255,53 @@ export function ExpertView() {
               </select>
             </div>
           </div>
-          <label>Expert knowledge / opinion</label>
+
+          <label>Meeting transcript</label>
           <textarea
             className="large-text"
-            placeholder="Add expert knowledge here..."
-            value={expertText}
-            onChange={(e) => setExpertText(e.target.value)}
+            placeholder="Paste meeting transcript here, or attach a .txt file below..."
+            value={transcript}
+            onChange={(e) => setTranscript(e.target.value)}
           />
           <div className="form-grid">
             <div>
-              <label>Attach evidence file</label>
-              <label className="attach-btn wide-attach" htmlFor="expertFile">Attach PDF / report</label>
+              <label>Attach transcript file</label>
+              <label className="attach-btn wide-attach" htmlFor="transcriptFile">Attach .txt transcript</label>
               <input
-                id="expertFile"
+                id="transcriptFile"
                 type="file"
+                accept=".txt,text/plain,.md"
                 className="hidden-input"
-                onChange={(e) => setExpertFileName(e.target.files?.[0]?.name ?? "")}
+                onChange={(e) => onTranscriptFile(e.target.files?.[0])}
               />
-              <div className="file-text">{expertFileName ? "Attached: " + expertFileName : "No file attached."}</div>
+              <div className="file-text">{transcriptFileName ? "Attached: " + transcriptFileName : "No transcript file."}</div>
             </div>
+            <div>
+              <label>Attach handwritten notes (image)</label>
+              <label className="attach-btn wide-attach" htmlFor="notesImage">Attach photo of notes</label>
+              <input
+                id="notesImage"
+                type="file"
+                accept="image/*"
+                className="hidden-input"
+                onChange={(e) => onImageFile(e.target.files?.[0])}
+              />
+              <div className="file-text">{imageFileName ? "Attached: " + imageFileName : "No image attached."}</div>
+              {imageDataUrl && (
+                <img src={imageDataUrl} alt="notes preview" className="notes-preview" />
+              )}
+            </div>
+          </div>
+
+          <label>Additional expert insights (optional)</label>
+          <textarea
+            className="large-text"
+            placeholder="Add anything the transcript or notes miss — context, caveats, decisions..."
+            value={additionalInsights}
+            onChange={(e) => setAdditionalInsights(e.target.value)}
+          />
+
+          <div className="form-grid">
             <div>
               <label>Confidence</label>
               <select value={confidence} onChange={(e) => setConfidence(e.target.value)}>
@@ -196,8 +310,35 @@ export function ExpertView() {
                 <option>Low confidence</option>
               </select>
             </div>
+            <div style={{ display: "flex", alignItems: "flex-end" }}>
+              <button onClick={generate} disabled={isGenerating}>
+                {isGenerating ? "Generating..." : "Generate knowledge with AI"}
+              </button>
+            </div>
           </div>
-          <button onClick={addKnowledge}>Add knowledge to project</button>
+
+          {error && <div className="notice" style={{ background: "#fdecec", color: "#a02020" }}>{error}</div>}
+
+          {draft && (
+            <div className="block draft-block">
+              <h3>AI-drafted knowledge entry</h3>
+              <p><strong>Summary:</strong> {draft.summary}</p>
+              {draft.keyPoints.length > 0 && (
+                <>
+                  <p><strong>Key points:</strong></p>
+                  <ul>
+                    {draft.keyPoints.map((p, i) => <li key={i}>{p}</li>)}
+                  </ul>
+                </>
+              )}
+              <p className="muted">Suggested source: {draft.sourceLabel} · Suggested confidence: {draft.recommendedConfidence}</p>
+              <div className="action-row">
+                <button onClick={acceptDraft}>Add to knowledge base</button>
+                <button className="action-btn secondary" onClick={() => setDraft(null)}>Discard draft</button>
+              </div>
+            </div>
+          )}
+
           {expertNotice && <div className="notice">{expertNotice}</div>}
         </div>
         <aside className="side-info">
@@ -209,7 +350,7 @@ export function ExpertView() {
               {kb.map((k, i) => (
                 <div key={i} className="knowledge-row">
                   <strong>{k.area}</strong>
-                  <span>{k.expert}: {k.text}</span>
+                  <span style={{ whiteSpace: "pre-wrap" }}>{k.expert}: {k.text}</span>
                   <span>Source: {k.source} · {k.confidence}</span>
                 </div>
               ))}
