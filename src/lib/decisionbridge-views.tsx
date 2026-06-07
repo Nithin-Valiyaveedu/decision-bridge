@@ -988,13 +988,7 @@ function ExpertSelector({
             const isSel = selected.has(e[0]);
             return (
               <div key={i} className={`item expert-card ${isSel ? "selected" : ""}`}>
-                <label className="expert-pick">
-                  <input
-                    type="checkbox"
-                    checked={isSel}
-                    disabled={sent}
-                    onChange={() => toggle(e[0])}
-                  />
+                <div className="expert-pick-header">
                   <div style={{ flex: 1 }}>
                     <h4>{e[0]}</h4>
                     <p><strong>{e[1]}</strong></p>
@@ -1004,9 +998,18 @@ function ExpertSelector({
                       <span className="tag orange">{e[4]}</span>
                     </div>
                   </div>
-                </label>
+                  <button
+                    type="button"
+                    className={`expert-select-btn ${isSel ? "selected" : ""}`}
+                    onClick={() => toggle(e[0])}
+                    disabled={sent}
+                    aria-pressed={isSel}
+                  >
+                    {isSel ? "✓ Selected" : "+ Select"}
+                  </button>
+                </div>
                 {isSel && (
-                  <div style={{ marginTop: 8 }}>
+                  <div style={{ marginTop: 10 }}>
                     <label className="muted" style={{ fontSize: 12 }}>Question for {e[0].split(" ")[0]}</label>
                     <textarea
                       className="expert-question"
