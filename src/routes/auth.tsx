@@ -1,6 +1,6 @@
-import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { DEMO_ACCOUNTS, getRole, setRole, type AppRole } from "@/lib/local-auth";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -8,42 +8,37 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+const roleHome: Record<AppRole, "/admin" | "/expert" | "/pm"> = {
+  admin: "/admin",
+  expert: "/expert",
+  pm: "/pm",
+};
+
 function AuthPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) router.navigate({ to: "/", replace: true });
-    });
+    const r = getRole();
+    if (r) router.navigate({ to: roleHome[r], replace: true });
   }, [router]);
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: window.location.origin },
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      }
-      router.navigate({ to: "/", replace: true });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
-    } finally {
-      setLoading(false);
+    const acct = DEMO_ACCOUNTS[username.trim().toLowerCase()];
+    if (!acct || acct.password !== password) {
+      setError("Invalid credentials. Try one of the demo accounts below.");
+      return;
     }
+    setRole(acct.role);
+    router.navigate({ to: roleHome[acct.role], replace: true });
+  };
+
+  const quickPick = (role: AppRole) => {
+    setRole(role);
+    router.navigate({ to: roleHome[role], replace: true });
   };
 
   return (
@@ -53,33 +48,30 @@ function AuthPage() {
           <header className="app-header">
             <div className="brand-row">
               <div className="logo-mark">DB</div>
-              <h1>{mode === "signin" ? "Sign in" : "Create account"}</h1>
+              <h1>Demo sign in</h1>
             </div>
           </header>
           <section className="view">
             <form onSubmit={submit} className="panel">
-              <label>Email</label>
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <label>Username</label>
+              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin / expert / pm" />
               <label>Password</label>
-              <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="same as username" />
               {error && <div className="notice" style={{ color: "#b00020" }}>{error}</div>}
-              <button disabled={loading} type="submit">
-                {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Sign up"}
-              </button>
-              <p style={{ marginTop: 12, fontSize: 14 }}>
-                {mode === "signin" ? "New here?" : "Already have an account?"}{" "}
-                <button
-                  type="button"
-                  onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-                  style={{ background: "none", color: "#1746a2", padding: 0, cursor: "pointer", textDecoration: "underline" }}
-                >
-                  {mode === "signin" ? "Create account" : "Sign in"}
-                </button>
-              </p>
-              <p style={{ fontSize: 12, color: "#666", marginTop: 16 }}>
-                New accounts get the <strong>PM</strong> role by default. Admin/Expert roles must be granted by an administrator in the backend.
-              </p>
+              <button type="submit">Sign in</button>
             </form>
+
+            <div className="panel" style={{ marginTop: 16 }}>
+              <p style={{ marginTop: 0, fontWeight: 600 }}>Quick demo access</p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button type="button" onClick={() => quickPick("admin")}>Enter as Admin</button>
+                <button type="button" onClick={() => quickPick("expert")}>Enter as Expert</button>
+                <button type="button" onClick={() => quickPick("pm")}>Enter as PM</button>
+              </div>
+              <p style={{ fontSize: 12, color: "#666", marginTop: 12 }}>
+                Demo only — role is stored in your browser's localStorage. No real authentication.
+              </p>
+            </div>
           </section>
         </section>
       </main>
