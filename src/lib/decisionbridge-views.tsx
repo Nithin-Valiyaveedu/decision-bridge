@@ -603,6 +603,10 @@ export function PmChatView() {
   const kb = useKnowledge();
   const kbRef = useRef(kb);
   kbRef.current = kb;
+  const tickets = useTickets();
+  const openTickets = tickets.filter((t) => t.status === "open");
+  const answeredTickets = tickets.filter((t) => t.status === "answered");
+
 
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
