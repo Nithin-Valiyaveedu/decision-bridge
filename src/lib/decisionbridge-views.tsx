@@ -625,6 +625,7 @@ export function PmChatView() {
   const [pmFiles, setPmFiles] = useState<string[]>([]);
   const msgIdRef = useRef(1);
   const chatRef = useRef<HTMLDivElement>(null);
+  const lastQuestionRef = useRef<string>("");
 
   const scrollChat = () => {
     requestAnimationFrame(() => {
