@@ -896,6 +896,22 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
   return (
     <section className="view pm-view">
       <section className="chat-area" ref={chatRef}>
+        {(openTickets.length > 0 || answeredTickets.length > 0) && (
+          <div className="ticket-banner">
+            <div>
+              <strong>Expert ticket status</strong>
+              <span className="ticket-banner-sub">
+                {answeredTickets.length} of {openTickets.length + answeredTickets.length} response{openTickets.length + answeredTickets.length === 1 ? "" : "s"} received
+                {openTickets.length > 0 && ` · ${openTickets.length} pending`}
+              </span>
+            </div>
+            {answeredTickets.length > 0 && lastQuestionRef.current && (
+              <button className="action-btn" onClick={() => ask(lastQuestionRef.current)}>
+                Re-run readiness with new answers
+              </button>
+            )}
+          </div>
+        )}
         {messages.map((m) => (
           <div key={m.id} className={`message ${m.type}`}>
             <div className="avatar">{m.type === "ai" ? "AI" : "PM"}</div>
