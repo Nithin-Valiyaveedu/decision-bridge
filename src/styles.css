@@ -255,6 +255,111 @@
   cursor: pointer;
 }
 
+/* Auth page redesign */
+.db-root .auth-card {
+  max-width: 520px;
+  margin: 60px auto;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  height: auto;
+  min-height: 0;
+}
+.db-root .auth-hero {
+  text-align: center;
+  padding: 48px 32px 32px;
+}
+.db-root .auth-logo {
+  margin: 0 auto 18px;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  font-size: 24px;
+}
+.db-root .auth-title {
+  margin: 0 0 8px;
+  font-size: 28px;
+  letter-spacing: -0.03em;
+}
+.db-root .auth-subtitle {
+  margin: 0;
+  color: #667085;
+  font-size: 15px;
+}
+.db-root .auth-body {
+  padding: 0 32px 40px;
+}
+.db-root .auth-prompt {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #344054;
+  margin: 0 0 18px;
+}
+.db-root .auth-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.db-root .role-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #d9e2ef;
+  border-radius: 16px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.db-root .role-card:hover {
+  border-color: #1746a2;
+  box-shadow: 0 8px 24px rgba(23, 70, 162, 0.10);
+  transform: translateY(-1px);
+}
+.db-root .role-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.db-root .role-admin .role-icon { background: #eef6ff; color: #1746a2; }
+.db-root .role-expert .role-icon { background: #ecfdf3; color: #087443; }
+.db-root .role-pm .role-icon { background: #fff5ea; color: #a14b00; }
+.db-root .role-text strong {
+  display: block;
+  font-size: 15px;
+  color: #182230;
+  margin-bottom: 2px;
+}
+.db-root .role-text span {
+  display: block;
+  font-size: 13px;
+  color: #667085;
+  font-weight: 400;
+}
+.db-root .role-arrow {
+  color: #b8c7dd;
+  font-size: 18px;
+  font-weight: 700;
+  transition: color 0.2s ease;
+}
+.db-root .role-card:hover .role-arrow {
+  color: #1746a2;
+}
+.db-root .auth-footnote {
+  text-align: center;
+  font-size: 12px;
+  color: #98a2b3;
+  margin: 20px 0 0;
+}
+
 .muted { color: #5b6b85; font-size: 14px; margin: 4px 0 12px; }
 .notes-preview {
   margin-top: 10px;
