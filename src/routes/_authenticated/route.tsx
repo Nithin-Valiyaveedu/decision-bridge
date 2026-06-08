@@ -28,6 +28,12 @@ function AuthedLayout() {
     return <div className="db-root" />;
   }
 
+  const roleLabel: Record<string, string> = {
+    admin: "Admin",
+    expert: "Expert",
+    pm: "Project Manager",
+  };
+
   return (
     <div className="db-root">
       <header className="app-nav">
@@ -37,10 +43,10 @@ function AuthedLayout() {
           {role === "expert" && <Link to="/expert" activeProps={{ className: "active" }}>Expert workspace</Link>}
           {role === "pm" && <Link to="/pm" activeProps={{ className: "active" }}>Decision chat</Link>}
         </nav>
-        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--t3, #475569)", fontFamily: "var(--fm, monospace)" }}>
-          role: <strong style={{ color: "var(--t2, #94a3b8)" }}>{role}</strong>
-        </span>
-        <button onClick={signOut} className="sign-out-btn">Sign out</button>
+        <div className="nav-right">
+          <span className={`role-badge role-${role}`}>{roleLabel[role ?? ""] ?? role}</span>
+          <button onClick={signOut} className="sign-out-btn">Switch role</button>
+        </div>
       </header>
       <Outlet />
     </div>
