@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { extractKnowledge } from "@/lib/extract-knowledge.functions";
 import { translateDecision, type TranslationResult } from "@/lib/translate-decision.functions";
+import { classifyQuestion, type ClassifyResult } from "@/lib/classify-question.functions";
 import { addKnowledge, useKnowledge, type Knowledge } from "@/lib/knowledge-store";
 import { addTicket, answerTicket, useTickets, type Ticket } from "@/lib/ticket-store";
 import { addProject, useProjects, type Project } from "@/lib/project-store";
@@ -69,10 +70,12 @@ const missingInfoByArea: Record<string, string[]> = {
   "New testing process": ["Test repeatability study", "PLM formal change approval", "Customer quality acceptance"],
 };
 
-function buildFlow(question: string, kb: Knowledge[]): Flow {
-  const key = classify(question);
+function buildFlow(question: string, kb: Knowledge[], aiResult?: ClassifyResult): Flow {
+  const key = aiResult?.categoryKey ?? classify(question);
   const base = categoryMap[key];
-  const matching = kb.filter((k) => k.area === base.area);
+  const matching = aiResult && aiResult.matchingIds.length > 0
+    ? kb.filter((k) => aiResult.matchingIds.includes(k.id))
+    : kb.filter((k) => k.area === base.area);
   const found = matching.length > 0;
 
   // Score breakdown
@@ -919,6 +922,7 @@ export function PmChatView() {
   const msgIdRef = useRef(1);
   const chatRef = useRef<HTMLDivElement>(null);
   const lastQuestionRef = useRef<string>("");
+  const runClassify = useServerFn(classifyQuestion);
 
   const scrollChat = () => {
     requestAnimationFrame(() => {
@@ -1121,36 +1125,70 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
     URL.revokeObjectURL(url);
   };
 
-  const ask = (q: string) => {
-    const flow = buildFlow(q, scopedKb(kbRef.current));
+  const ask = async (q: string) => {
     lastQuestionRef.current = q;
-    setProjectName(activeProject ? activeProject.name : flow.project);
     appendMsg("user", <p>{q}</p>);
     setQuestion("");
-    setTimeout(() => {
-      const chip = flow.found ? (
-        <span className="result-chip found">Existing expert knowledge found</span>
-      ) : (
-        <span className="result-chip missing">Knowledge gap found</span>
-      );
-      appendMsg(
-        "ai",
-        <>
-          {chip}
-          <p>I understood this as a <strong>{flow.foundTitle}</strong> decision.</p>
-          <div className="block">
-            <h4>Language Bridge</h4>
-            <div className="two-col">
-              <div className="item"><span>PM / business view</span><p>{flow.business}</p></div>
-              <div className="item"><span>Technical expert view</span><p>{flow.technical}</p></div>
+
+    // Show spinner while Gemini classifies
+    const thinkingId = msgIdRef.current;
+    appendMsg("ai", (
+      <div className="translating-state">
+        <div className="translating-spinner" />
+        <span>Searching knowledge base…</span>
+      </div>
+    ));
+
+    let flow: Flow;
+    try {
+      const aiResult = await runClassify({
+        data: {
+          question: q,
+          knowledgeEntries: scopedKb(kbRef.current).map((k) => ({
+            id: k.id,
+            area: k.area,
+            expert: k.expert,
+            text: k.text.slice(0, 400),
+            confidence: k.confidence,
+          })),
+        },
+      });
+      flow = buildFlow(q, scopedKb(kbRef.current), aiResult);
+    } catch {
+      flow = buildFlow(q, scopedKb(kbRef.current));
+    }
+
+    setProjectName(activeProject ? activeProject.name : flow.project);
+
+    const chip = flow.found
+      ? <span className="result-chip found">Existing expert knowledge found</span>
+      : <span className="result-chip missing">Knowledge gap found</span>;
+
+    // Replace the spinner message with the Language Bridge result
+    setMessages((prev) => [
+      ...prev.filter((m) => m.id !== thinkingId),
+      {
+        id: msgIdRef.current++,
+        type: "ai" as const,
+        node: (
+          <>
+            {chip}
+            <p>I understood this as a <strong>{flow.foundTitle}</strong> decision.</p>
+            <div className="block">
+              <h4>Language Bridge</h4>
+              <div className="two-col">
+                <div className="item"><span>PM / business view</span><p>{flow.business}</p></div>
+                <div className="item"><span>Technical expert view</span><p>{flow.technical}</p></div>
+              </div>
             </div>
-          </div>
-          <div className="action-row">
-            <button className="action-btn" onClick={() => showKnowledge(flow)}>Check expert knowledge base</button>
-          </div>
-        </>
-      );
-    }, 350);
+            <div className="action-row">
+              <button className="action-btn" onClick={() => showKnowledge(flow)}>Check expert knowledge base</button>
+            </div>
+          </>
+        ),
+      },
+    ]);
+    scrollChat();
   };
 
   const sendQuestion = () => {

@@ -502,13 +502,14 @@
 .db-root .auth-prompt { text-align: center; font-size: 12px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .07em; margin: 0 0 16px; }
 .db-root .auth-roles { display: flex; flex-direction: column; gap: 10px; }
 .db-root .role-card { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; width: 100%; text-align: left; background: var(--surface); border: 1.5px solid var(--bd); border-radius: 14px; padding: 16px 18px; cursor: pointer; transition: all .2s ease; font-family: var(--fb); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-.db-root .role-card:hover { border-color: var(--green); box-shadow: 0 4px 16px rgba(0,155,58,0.12); transform: translateY(-2px); }
+.db-root .role-card:hover { background: #fff; border-color: var(--green); box-shadow: 0 4px 16px rgba(0,155,58,0.12); transform: translateY(-2px); }
 .db-root .role-icon { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; flex-shrink: 0; }
 .db-root .role-admin  .role-icon { background: var(--green-d); color: var(--green-2); }
 .db-root .role-expert .role-icon { background: var(--blue-d);  color: var(--blue); }
 .db-root .role-pm     .role-icon { background: var(--amber-d); color: var(--amber); }
 .db-root .role-text strong { display: block; font-size: 14.5px; color: var(--t1); margin-bottom: 2px; font-weight: 600; }
 .db-root .role-text span   { display: block; font-size: 12.5px; color: var(--t3); font-weight: 400; }
+.db-root .role-card:hover .role-text strong { font-weight: 700; color: var(--green-2); }
 .db-root .role-arrow { color: var(--t4); font-size: 16px; transition: color .2s, transform .2s; }
 .db-root .role-card:hover .role-arrow { color: var(--green); transform: translateX(3px); }
 .db-root .auth-footnote { text-align: center; font-size: 11.5px; color: var(--t4); margin: 20px 0 0; }
