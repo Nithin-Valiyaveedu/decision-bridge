@@ -330,7 +330,7 @@ export function AdminView() {
 
 export function ExpertView() {
   const [expertName, setExpertName] = useState(EXPERTS[0]);
-  const [tab, setTab] = useState<"capture" | "tickets">("capture");
+  const [tab, setTab] = useState<"capture" | "tickets" | "sources">("capture");
   const tickets = useTickets();
   const myName = expertName.split(" · ")[0];
   const myOpen = tickets.filter((t) => t.assignedTo === myName && t.status === "open").length;
@@ -351,11 +351,14 @@ export function ExpertView() {
           <button className={`expert-tab ${tab === "tickets" ? "active" : ""}`} onClick={() => setTab("tickets")}>
             My tickets{myOpen > 0 && <span className="tab-badge">{myOpen}</span>}
           </button>
+          <button className={`expert-tab ${tab === "sources" ? "active" : ""}`} onClick={() => setTab("sources")}>
+            Connected sources
+          </button>
         </div>
       </div>
-      {tab === "capture"
-        ? <ExpertCapturePanel expertName={expertName} />
-        : <ExpertTicketsPanel expertName={expertName} myName={myName} />}
+      {tab === "capture" && <ExpertCapturePanel expertName={expertName} />}
+      {tab === "tickets" && <ExpertTicketsPanel expertName={expertName} myName={myName} />}
+      {tab === "sources" && <ExpertSourcesPanel expertName={expertName} />}
     </section>
   );
 }
@@ -594,6 +597,213 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
           );
         })()}
       </aside>
+    </div>
+  );
+}
+
+const CONNECTORS = [
+  {
+    id: "jira",
+    name: "Jira",
+    icon: "J",
+    color: "#0052CC",
+    status: "connected" as const,
+    detail: "Power Module X · auto-syncing tickets",
+    sampleContent: `TICKET PMX-2847: Supplier B Qualification Status Update
+Reporter: Dr. Lukas Müller | Project: Power Module X
+
+Thermal cycling tests for Supplier B completed. 94% pass rate across 1000 cycles — within acceptable threshold. Lifetime stress tests within spec. No degradation anomalies detected. HTOL test still outstanding — expected completion end of month.
+
+Recommendation: Conditional approval for pilot volumes. Full production release should wait for final HTOL confirmation.`,
+    sampleArea: "Supplier approval",
+    sampleSource: "Auto: Jira · PMX-2847",
+  },
+  {
+    id: "slack",
+    name: "Slack",
+    icon: "S",
+    color: "#4A154B",
+    status: "connected" as const,
+    detail: "#engineering-decisions · live",
+    sampleContent: `Thread: Power Module X — Supplier B Decision
+@anna.weber: Supplier qualification audit passed April. OTD rate 96% over 12 months. Quality management system approved. Recommending approval for pilot volumes.
+@markus.klein: Lead time is 6 weeks. Current buffer stock covers 8 weeks. Single-source risk until Supplier C qualifies in Q4. Pilot approval now prevents production gaps.
+@dr.mueller: Reliability nearly complete. HTOL still running — won't block pilot but should gate full production ramp.`,
+    sampleArea: "Supplier approval",
+    sampleSource: "Auto: Slack · #engineering-decisions",
+  },
+  {
+    id: "gmail",
+    name: "Gmail",
+    icon: "G",
+    color: "#EA4335",
+    status: "configure" as const,
+    detail: "Not connected",
+    sampleContent: "",
+    sampleArea: "",
+    sampleSource: "",
+  },
+  {
+    id: "teams",
+    name: "Teams",
+    icon: "T",
+    color: "#6264A7",
+    status: "configure" as const,
+    detail: "Not connected",
+    sampleContent: "",
+    sampleArea: "",
+    sampleSource: "",
+  },
+];
+
+function ExpertSourcesPanel({ expertName }: { expertName: string }) {
+  const projects = useProjects();
+  const kb = useKnowledge();
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(
+    () => projects[0]?.id ?? ""
+  );
+  const [simulating, setSimulating] = useState<string | null>(null);
+  const [draft, setDraft] = useState<null | {
+    summary: string; keyPoints: string[]; recommendedConfidence: string; sourceLabel: string;
+    connectorId: string; area: string; source: string;
+  }>(null);
+  const [notice, setNotice] = useState("");
+  const runExtract = useServerFn(extractKnowledge);
+
+  const autoCaptured = kb.filter((k) => k.source.startsWith("Auto:"));
+
+  const simulate = async (connector: typeof CONNECTORS[0]) => {
+    if (!connector.sampleContent) return;
+    setSimulating(connector.id);
+    setDraft(null);
+    setNotice("");
+    try {
+      const result = await runExtract({
+        data: {
+          knowledgeArea: connector.sampleArea,
+          expertName,
+          transcript: connector.sampleContent,
+          additionalInsights: "",
+        },
+      });
+      setDraft({
+        ...result,
+        connectorId: connector.id,
+        area: connector.sampleArea,
+        source: connector.sampleSource,
+      });
+    } catch {
+      setNotice("Could not process incoming content. Check your connection.");
+    } finally {
+      setSimulating(null);
+    }
+  };
+
+  const save = () => {
+    if (!draft) return;
+    const body = draft.summary +
+      (draft.keyPoints.length ? "\n\nKey points:\n- " + draft.keyPoints.join("\n- ") : "");
+    addKnowledge({
+      area: draft.area,
+      expert: expertName.split(" · ")[0],
+      text: body,
+      source: draft.source,
+      confidence: draft.recommendedConfidence,
+      projectId: selectedProjectId || undefined,
+    });
+    setDraft(null);
+    setNotice("Knowledge captured automatically and added to the base.");
+  };
+
+  return (
+    <div className="single-layout">
+      <div className="panel">
+        <h2>Connected sources</h2>
+        <p className="muted">
+          Knowledge flows in automatically from the tools your team already uses — no manual upload needed.
+          Connect once, and every relevant update is extracted and available to decision makers instantly.
+        </p>
+
+        {projects.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <label>Capture to project</label>
+            <select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}>
+              <option value="">— No project —</option>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        <div className="connector-grid">
+          {CONNECTORS.map((c) => (
+            <div key={c.id} className={`connector-card ${c.status}`}>
+              <div className="connector-head">
+                <div className="connector-icon" style={{ background: c.color }}>{c.icon}</div>
+                <div className="connector-info">
+                  <strong>{c.name}</strong>
+                  <span>{c.detail}</span>
+                </div>
+                <div className={`connector-dot ${c.status}`} />
+              </div>
+              {c.status === "connected" ? (
+                <button
+                  className="action-btn secondary"
+                  style={{ width: "100%", marginTop: 12 }}
+                  onClick={() => simulate(c)}
+                  disabled={simulating === c.id}
+                >
+                  {simulating === c.id ? "Receiving…" : "Simulate incoming →"}
+                </button>
+              ) : (
+                <button className="action-btn secondary" style={{ width: "100%", marginTop: 12, opacity: .5 }} disabled>
+                  Configure
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {draft && (
+          <div className="block draft-block" style={{ marginTop: 20 }}>
+            <div className="auto-capture-badge">
+              Auto-captured from {CONNECTORS.find((c) => c.id === draft.connectorId)?.name}
+            </div>
+            <h3>Extracted knowledge</h3>
+            <p><strong>Summary:</strong> {draft.summary}</p>
+            {draft.keyPoints.length > 0 && (
+              <>
+                <p><strong>Key points:</strong></p>
+                <ul>{draft.keyPoints.map((p, i) => <li key={i}>{p}</li>)}</ul>
+              </>
+            )}
+            <p className="muted">Area: {draft.area} · Confidence: {draft.recommendedConfidence}</p>
+            <div className="action-row">
+              <button onClick={save}>Add to knowledge base</button>
+              <button className="action-btn secondary" onClick={() => setDraft(null)}>Dismiss</button>
+            </div>
+          </div>
+        )}
+
+        {notice && <div className="notice">{notice}</div>}
+
+        <h3>Auto-captured entries</h3>
+        {autoCaptured.length === 0 ? (
+          <div className="empty-box">No auto-captured entries yet. Click "Simulate incoming" on a connected source above.</div>
+        ) : (
+          <div className="knowledge-feed">
+            {autoCaptured.map((k) => (
+              <div key={k.id} className="knowledge-row">
+                <div className="knowledge-row-head">
+                  <strong>{k.area}</strong>
+                  <span className="auto-source-badge">{k.source}</span>
+                </div>
+                <span style={{ whiteSpace: "pre-wrap" }}>{k.expert}: {k.text}</span>
+                <span>{k.confidence}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

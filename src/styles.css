@@ -356,6 +356,22 @@
 .db-root .member-chip { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--green-d); color: var(--green-2); font-weight: 600; }
 .db-root .project-select { flex: 1; min-width: 0; }
 
+/* ── Connector cards (sources tab) ─────────────────── */
+.db-root .connector-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+.db-root .connector-card { border: 1.5px solid var(--bd); border-radius: 14px; padding: 16px; background: var(--card-2); transition: border-color .15s; }
+.db-root .connector-card.connected { border-color: rgba(0,155,58,0.3); background: var(--green-d); }
+.db-root .connector-head { display: flex; align-items: center; gap: 12px; }
+.db-root .connector-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-size: 15px; font-weight: 800; color: #fff; flex-shrink: 0; }
+.db-root .connector-info { flex: 1; min-width: 0; }
+.db-root .connector-info strong { display: block; font-size: 13.5px; color: var(--t1); font-weight: 700; }
+.db-root .connector-info span { display: block; font-size: 11.5px; color: var(--t3); margin-top: 2px; }
+.db-root .connector-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.db-root .connector-dot.connected { background: var(--green); box-shadow: 0 0 0 3px rgba(0,155,58,0.2); }
+.db-root .connector-dot.configure { background: var(--t4); }
+.db-root .auto-capture-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--green-d); color: var(--green-2); border: 1px solid rgba(0,155,58,0.25); border-radius: 20px; padding: 4px 12px; font-size: 11.5px; font-weight: 700; margin-bottom: 10px; }
+.db-root .auto-capture-badge::before { content: "⚡"; font-size: 11px; }
+.db-root .auto-source-badge { font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 20px; background: var(--green-d); color: var(--green-2); }
+
 /* ── Attach ────────────────────────────────────────── */
 .db-root .attach-btn { display: grid; place-items: center; border: 1.5px dashed rgba(0,155,58,0.3); color: var(--green); border-radius: 10px; padding: 11px 14px; font-weight: 600; font-size: 13px; cursor: pointer; background: var(--green-d); transition: all .15s; }
 .db-root .attach-btn:hover { border-color: rgba(0,155,58,0.55); background: var(--green-m); }
