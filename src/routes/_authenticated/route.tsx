@@ -1,12 +1,9 @@
-import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute, Outlet, Link, useRouter, useNavigate } from "@tanstack/react-router";
 import { clearRole, getRole } from "@/lib/local-auth";
 import { useRole } from "@/lib/use-roles";
 
 export const Route = createFileRoute("/_authenticated")({
-  ssr: false,
-  beforeLoad: () => {
-    if (!getRole()) throw redirect({ to: "/auth" });
-  },
   component: AuthedLayout,
 });
 
