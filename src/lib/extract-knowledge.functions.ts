@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
-import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { createGeminiProvider } from "./ai-gateway.server";
 
 const InputSchema = z.object({
   knowledgeArea: z.string().min(1).max(200),
@@ -36,15 +36,15 @@ function extractJson(raw: string): unknown {
 export const extractKnowledge = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => InputSchema.parse(d))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) throw new Error("Missing GEMINI_API_KEY");
 
     if (!data.transcript.trim() && !data.imageBase64 && !data.additionalInsights.trim()) {
       throw new Error("Provide a transcript, an image, or additional insights.");
     }
 
-    const gateway = createLovableAiGatewayProvider(key);
-    const model = gateway("google/gemini-3-flash-preview");
+    const gemini = createGeminiProvider(key);
+    const model = gemini("gemini-2.0-flash");
 
     const userParts: Array<
       | { type: "text"; text: string }

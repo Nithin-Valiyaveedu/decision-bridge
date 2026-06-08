@@ -8,7 +8,7 @@ AI-powered decision intelligence for engineering organisations. Connects expert 
 
 - [Bun](https://bun.sh) v1.0+ — used as package manager and dev server runner
 - Node.js 18+ (Bun uses its own runtime but Vite/Nitro need Node for builds)
-- A **Lovable API key** — used to call `google/gemini-3-flash-preview` via the Lovable AI Gateway
+- A **Gemini API key** — get one free at [aistudio.google.com](https://aistudio.google.com/apikey)
 
 ---
 
@@ -27,10 +27,10 @@ bun install
 Create a `.env` file in the project root:
 
 ```bash
-LOVABLE_API_KEY=your_lovable_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-The key is used server-side only (never exposed to the browser). It authenticates requests to the Lovable AI Gateway which proxies to Gemini.
+The key is used server-side only (never exposed to the browser). All three AI calls use `gemini-2.0-flash` via `@ai-sdk/google`.
 
 ### 3. Run development server
 
