@@ -1,23 +1,31 @@
-import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute, Outlet, Link, useRouter, useNavigate } from "@tanstack/react-router";
 import { clearRole, getRole } from "@/lib/local-auth";
 import { useRole } from "@/lib/use-roles";
 
 export const Route = createFileRoute("/_authenticated")({
-  ssr: false,
-  beforeLoad: () => {
-    if (!getRole()) throw redirect({ to: "/auth" });
-  },
   component: AuthedLayout,
 });
 
 function AuthedLayout() {
   const router = useRouter();
+  const navigate = useNavigate();
   const role = useRole();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (!getRole()) navigate({ to: "/auth", replace: true });
+  }, [navigate]);
 
   const signOut = () => {
     clearRole();
     router.navigate({ to: "/auth", replace: true });
   };
+
+  if (!mounted) {
+    return <div className="db-root" />;
+  }
 
   return (
     <div className="db-root">
