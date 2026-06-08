@@ -8,6 +8,7 @@ export type Knowledge = {
   source: string;
   confidence: string;
   createdAt: number;
+  projectId?: string;
 };
 
 const KEY = "db_knowledge_v1";

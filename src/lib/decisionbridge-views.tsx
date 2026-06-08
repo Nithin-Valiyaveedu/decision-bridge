@@ -4,6 +4,7 @@ import { extractKnowledge } from "@/lib/extract-knowledge.functions";
 import { translateDecision, type TranslationResult } from "@/lib/translate-decision.functions";
 import { addKnowledge, useKnowledge, type Knowledge } from "@/lib/knowledge-store";
 import { addTicket, answerTicket, useTickets, type Ticket } from "@/lib/ticket-store";
+import { addProject, useProjects, type Project } from "@/lib/project-store";
 import {
   adminPeople,
   categoryMap,
@@ -11,6 +12,14 @@ import {
   type Category,
   type Person,
 } from "@/lib/decisionbridge-data";
+
+const ALL_AREAS = [
+  "Supplier approval",
+  "Manufacturing defect",
+  "Pilot batch shipment",
+  "Material change",
+  "New testing process",
+] as const;
 
 const EXPERTS = [
   "Dr. Lukas Müller · Reliability Expert",
@@ -140,15 +149,36 @@ const EXPERT_DOMAINS: Record<string, { areas: string[]; color: string }> = {
 
 export function AdminView() {
   const [checked, setChecked] = useState<Set<number>>(new Set());
-  const [onboarded, setOnboarded] = useState<Person[]>([]);
   const [adminNotice, setAdminNotice] = useState("");
+  const [projName, setProjName] = useState("Power Module X");
+  const [projUnit, setProjUnit] = useState("Automotive Power Semiconductors");
+  const [projPm, setProjPm] = useState("Sarah Klein");
+  const [projAreas, setProjAreas] = useState<Set<string>>(
+    new Set(["Supplier approval", "Manufacturing defect", "Pilot batch shipment"])
+  );
   const kb = useKnowledge();
   const tickets = useTickets();
+  const projects = useProjects();
+
+  const toggleArea = (area: string) => {
+    const next = new Set(projAreas);
+    if (next.has(area)) next.delete(area); else next.add(area);
+    setProjAreas(next);
+  };
 
   const onboard = () => {
-    const sel = Array.from(checked).map((i) => adminPeople[i]);
-    setOnboarded(sel);
-    setAdminNotice(`${sel.length} people onboarded to the project workspace.`);
+    if (!projName.trim()) { setAdminNotice("Enter a project name first."); return; }
+    if (projAreas.size === 0) { setAdminNotice("Select at least one decision area."); return; }
+    const members = Array.from(checked).map((i) => adminPeople[i][0]);
+    addProject({
+      name: projName.trim(),
+      businessUnit: projUnit.trim(),
+      pm: projPm.trim(),
+      members,
+      areas: Array.from(projAreas),
+    });
+    setChecked(new Set());
+    setAdminNotice(`Project "${projName}" created with ${members.length} member(s).`);
   };
 
   const expertStats = adminPeople.map((p) => {
@@ -165,18 +195,34 @@ export function AdminView() {
         <div className="panel">
           <h2>Onboard a project</h2>
           <div className="form-grid">
-            <div><label>Project name</label><input defaultValue="Power Module X" /></div>
-            <div><label>Business unit</label><input defaultValue="Automotive Power Semiconductors" /></div>
-            <div><label>Project manager</label><input defaultValue="Sarah Klein · Project Manager" /></div>
             <div>
-              <label>Decision area</label>
-              <select>
-                <option>Supplier, production, reliability, quality</option>
-                <option>Manufacturing process and yield</option>
-                <option>Product change and material qualification</option>
-              </select>
+              <label>Project name</label>
+              <input value={projName} onChange={(e) => setProjName(e.target.value)} />
+            </div>
+            <div>
+              <label>Business unit</label>
+              <input value={projUnit} onChange={(e) => setProjUnit(e.target.value)} />
+            </div>
+            <div>
+              <label>Project manager</label>
+              <input value={projPm} onChange={(e) => setProjPm(e.target.value)} />
             </div>
           </div>
+
+          <h3>Decision areas for this project</h3>
+          <div className="area-check-list">
+            {ALL_AREAS.map((area) => (
+              <label key={area} className="area-check">
+                <input
+                  type="checkbox"
+                  checked={projAreas.has(area)}
+                  onChange={() => toggleArea(area)}
+                />
+                {area}
+              </label>
+            ))}
+          </div>
+
           <h3>Select employees to onboard</h3>
           <div className="people-list">
             {adminPeople.map((p, i) => (
@@ -197,8 +243,44 @@ export function AdminView() {
               </label>
             ))}
           </div>
-          <button onClick={onboard}>Onboard selected people</button>
+          <button onClick={onboard}>Create project</button>
           {adminNotice && <div className="notice">{adminNotice}</div>}
+
+          <h3>Active projects</h3>
+          {projects.length === 0 ? (
+            <div className="empty-box">No projects created yet. Fill in the form above and click Create project.</div>
+          ) : (
+            <div className="project-list">
+              {projects.map((proj) => {
+                const kbCount = kb.filter((k) => k.projectId === proj.id).length;
+                const ticketCount = tickets.filter((t) => t.projectId === proj.id).length;
+                return (
+                  <div key={proj.id} className="project-card">
+                    <div className="project-card-head">
+                      <strong>{proj.name}</strong>
+                      <span className="project-unit">{proj.businessUnit}</span>
+                    </div>
+                    <div className="project-card-meta">
+                      <span>PM: {proj.pm}</span>
+                      <span>{proj.members.length} member{proj.members.length !== 1 ? "s" : ""}</span>
+                      <span>{kbCount} knowledge entr{kbCount !== 1 ? "ies" : "y"}</span>
+                      <span>{ticketCount} ticket{ticketCount !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="project-areas">
+                      {proj.areas.map((a) => <span key={a} className="expertise-tag">{a}</span>)}
+                    </div>
+                    {proj.members.length > 0 && (
+                      <div className="project-members">
+                        {proj.members.map((m) => (
+                          <span key={m} className="member-chip">{m.split(" ").slice(0, 2).join(" ")}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <h3>Expertise coverage map</h3>
           <p className="muted">Live overview of who covers what — and how active each expert is in the knowledge base.</p>
@@ -237,20 +319,6 @@ export function AdminView() {
               );
             })}
           </div>
-
-          <h3>People currently in workspace</h3>
-          {onboarded.length === 0 ? (
-            <div className="empty-box">No people onboarded yet.</div>
-          ) : (
-            <div className="people-list">
-              {onboarded.map((p, i) => (
-                <div key={i} className="person-card">
-                  <strong>{p[0]} · {p[1]}</strong>
-                  <span>{p[2]}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </section>
@@ -291,7 +359,14 @@ export function ExpertView() {
 
 function ExpertCapturePanel({ expertName }: { expertName: string }) {
   const kb = useKnowledge();
-  const [knowledgeArea, setKnowledgeArea] = useState("Supplier approval");
+  const projects = useProjects();
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => {
+    const ps = projects;
+    return ps.length > 0 ? ps[0].id : "";
+  });
+  const activeProject = projects.find((p) => p.id === selectedProjectId) ?? null;
+  const availableAreas = activeProject ? activeProject.areas : [...ALL_AREAS];
+  const [knowledgeArea, setKnowledgeArea] = useState(availableAreas[0] ?? "Supplier approval");
   const [transcript, setTranscript] = useState("");
   const [transcriptFileName, setTranscriptFileName] = useState("");
   const [additionalInsights, setAdditionalInsights] = useState("");
@@ -307,6 +382,12 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
     sourceLabel: string;
   }>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!availableAreas.includes(knowledgeArea)) {
+      setKnowledgeArea(availableAreas[0] ?? "Supplier approval");
+    }
+  }, [selectedProjectId]);
 
   const runExtract = useServerFn(extractKnowledge);
 
@@ -370,6 +451,7 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
       text: body,
       source: sources.join(" · "),
       confidence,
+      projectId: selectedProjectId || undefined,
     });
     setDraft(null);
     setTranscript(""); setTranscriptFileName("");
@@ -387,13 +469,21 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
         </p>
         <div className="form-grid">
           <div>
+            <label>Project</label>
+            <select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+            >
+              <option value="">— No project selected —</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label>Knowledge area</label>
             <select value={knowledgeArea} onChange={(e) => setKnowledgeArea(e.target.value)}>
-              <option>Supplier approval</option>
-              <option>Manufacturing defect</option>
-              <option>Pilot batch shipment</option>
-              <option>Packaging material change</option>
-              <option>New testing process</option>
+              {availableAreas.map((a) => <option key={a}>{a}</option>)}
             </select>
           </div>
           <div>
@@ -469,20 +559,37 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
       </div>
       <aside className="side-info">
         <h3>Knowledge currently available</h3>
-        <p className="muted">Shared with all PMs in this workspace.</p>
-        {kb.length === 0 ? (
-          <div className="empty-box">No expert knowledge added yet.</div>
-        ) : (
-          <div className="knowledge-feed">
-            {kb.map((k) => (
-              <div key={k.id} className="knowledge-row">
-                <strong>{k.area}</strong>
-                <span style={{ whiteSpace: "pre-wrap" }}>{k.expert}: {k.text}</span>
-                <span>Source: {k.source} · {k.confidence}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <p className="muted">
+          {activeProject ? `Project: ${activeProject.name}` : "All projects"}
+        </p>
+        {(() => {
+          const filtered = activeProject
+            ? kb.filter((k) => k.projectId === activeProject.id)
+            : kb;
+          return filtered.length === 0 ? (
+            <div className="empty-box">
+              {activeProject
+                ? `No knowledge for "${activeProject.name}" yet.`
+                : "No expert knowledge added yet."}
+            </div>
+          ) : (
+            <div className="knowledge-feed">
+              {filtered.map((k) => {
+                const proj = projects.find((p) => p.id === k.projectId);
+                return (
+                  <div key={k.id} className="knowledge-row">
+                    <div className="knowledge-row-head">
+                      <strong>{k.area}</strong>
+                      {proj && <span className="proj-badge">{proj.name}</span>}
+                    </div>
+                    <span style={{ whiteSpace: "pre-wrap" }}>{k.expert}: {k.text}</span>
+                    <span>Source: {k.source} · {k.confidence}</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </aside>
     </div>
   );
@@ -506,6 +613,7 @@ function ExpertTicketsPanel({ expertName, myName }: { expertName: string; myName
       text: `Response to PM question "${t.sourceQuestion}":\n\n${answer}`,
       source: `Expert ticket reply · ${t.title}`,
       confidence: "High confidence",
+      projectId: t.projectId,
     });
     setDrafts((d) => ({ ...d, [t.id]: "" }));
     setNotice(`Sent. PMs asking about "${t.area}" now see your answer in the knowledge base.`);
@@ -775,9 +883,22 @@ export function PmChatView() {
   const kbRef = useRef(kb);
   kbRef.current = kb;
   const tickets = useTickets();
-  const openTickets = tickets.filter((t) => t.status === "open");
-  const answeredTickets = tickets.filter((t) => t.status === "answered");
+  const projects = useProjects();
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
+  const activeProject = projects.find((p) => p.id === selectedProjectId) ?? null;
+
+  const scopedKb = (allKb: Knowledge[]) =>
+    activeProject
+      ? allKb.filter((k) => k.projectId === activeProject.id || !k.projectId)
+      : allKb;
+
+  const openTickets = tickets.filter(
+    (t) => t.status === "open" && (!activeProject || t.projectId === activeProject.id || !t.projectId),
+  );
+  const answeredTickets = tickets.filter(
+    (t) => t.status === "answered" && (!activeProject || t.projectId === activeProject.id || !t.projectId),
+  );
 
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
@@ -933,6 +1054,7 @@ export function PmChatView() {
       <ExpertSelector
         f={f}
         sourceQuestion={lastQuestionRef.current}
+        projectId={activeProject?.id}
         onCreated={(persisted) => {
           appendMsg(
             "ai",
@@ -1000,9 +1122,9 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
   };
 
   const ask = (q: string) => {
-    const flow = buildFlow(q, kbRef.current);
+    const flow = buildFlow(q, scopedKb(kbRef.current));
     lastQuestionRef.current = q;
-    setProjectName(flow.project);
+    setProjectName(activeProject ? activeProject.name : flow.project);
     appendMsg("user", <p>{q}</p>);
     setQuestion("");
     setTimeout(() => {
@@ -1081,16 +1203,36 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
               ))}
             </div>
             <div className="kb-status">
-              {kb.length > 0
-                ? `${kb.length} approved expert knowledge entr${kb.length === 1 ? "y" : "ies"} available.`
-                : "No expert knowledge captured yet — ask anyway and I'll route you to the right experts."}
+              {(() => {
+                const scoped = scopedKb(kb);
+                return scoped.length > 0
+                  ? `${scoped.length} approved expert knowledge entr${scoped.length === 1 ? "y" : "ies"} available${activeProject ? ` for ${activeProject.name}` : ""}.`
+                  : "No expert knowledge captured yet — ask anyway and I'll route you to the right experts.";
+              })()}
             </div>
           </div>
         )}
       </section>
       <section className="composer">
         <div className="meta-row">
-          <input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Project / product" />
+          {projects.length > 0 ? (
+            <select
+              value={selectedProjectId}
+              onChange={(e) => {
+                setSelectedProjectId(e.target.value);
+                const p = projects.find((p) => p.id === e.target.value);
+                if (p) setProjectName(p.name);
+              }}
+              className="project-select"
+            >
+              <option value="">— All projects —</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          ) : (
+            <input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Project / product" />
+          )}
           <select>
             <option>High impact</option>
             <option>Medium impact</option>
@@ -1116,10 +1258,12 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
 function ExpertSelector({
   f,
   sourceQuestion,
+  projectId,
   onCreated,
 }: {
   f: Flow;
   sourceQuestion: string;
+  projectId?: string;
   onCreated: (persisted: Ticket[]) => void;
 }) {
   const defaultSelected = f.tickets.length > 0
@@ -1157,6 +1301,7 @@ function ExpertSelector({
           question: questions[e[0]],
           area: f.area,
           sourceQuestion,
+          projectId,
         }),
       );
     }

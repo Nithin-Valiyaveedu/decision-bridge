@@ -331,9 +331,30 @@
 .db-root .person-card:hover, .db-root .knowledge-row:hover { border-color: var(--bd2); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 .db-root .person-card strong, .db-root .knowledge-row strong { display: block; font-size: 13.5px; color: var(--t1); }
 .db-root .person-card span, .db-root .knowledge-row span { display: block; color: var(--t3); font-size: 12px; margin-top: 3px; line-height: 1.45; }
+.db-root .knowledge-row-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+.db-root .knowledge-row-head strong { margin: 0; }
+.db-root .proj-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: var(--blue-d); color: var(--blue); letter-spacing: 0.02em; }
 .db-root .check-person { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
 .db-root .check-person input { width: auto; margin-top: 3px; accent-color: var(--green); }
 .db-root .empty-box { color: var(--t3); font-size: 13px; border: 1.5px dashed var(--bd); border-radius: 10px; padding: 16px; text-align: center; background: transparent; }
+
+/* ── Area checkboxes (admin) ───────────────────────── */
+.db-root .area-check-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.db-root .area-check { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1.5px solid var(--bd); border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--t2); background: var(--card-2); transition: all .15s; }
+.db-root .area-check:has(input:checked) { border-color: var(--green); background: var(--green-d); color: var(--green-2); font-weight: 600; }
+.db-root .area-check input { width: auto; accent-color: var(--green); }
+
+/* ── Project cards (admin) ─────────────────────────── */
+.db-root .project-list { display: grid; gap: 10px; margin-bottom: 16px; }
+.db-root .project-card { border: 1px solid var(--bd); border-left: 3px solid var(--green); border-radius: 10px; padding: 14px 16px; background: var(--card-2); }
+.db-root .project-card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.db-root .project-card-head strong { font-size: 14.5px; color: var(--t1); }
+.db-root .project-unit { font-size: 12px; color: var(--t3); }
+.db-root .project-card-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--t3); margin-bottom: 8px; }
+.db-root .project-areas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.db-root .project-members { display: flex; flex-wrap: wrap; gap: 6px; }
+.db-root .member-chip { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--green-d); color: var(--green-2); font-weight: 600; }
+.db-root .project-select { flex: 1; min-width: 0; }
 
 /* ── Attach ────────────────────────────────────────── */
 .db-root .attach-btn { display: grid; place-items: center; border: 1.5px dashed rgba(0,155,58,0.3); color: var(--green); border-radius: 10px; padding: 11px 14px; font-weight: 600; font-size: 13px; cursor: pointer; background: var(--green-d); transition: all .15s; }
