@@ -374,10 +374,7 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
   const availableAreas = activeProject ? activeProject.areas : [...ALL_AREAS];
   const [knowledgeArea, setKnowledgeArea] = useState(availableAreas[0] ?? "Supplier approval");
   const [transcript, setTranscript] = useState("");
-  const [transcriptFileName, setTranscriptFileName] = useState("");
   const [additionalInsights, setAdditionalInsights] = useState("");
-  const [imageDataUrl, setImageDataUrl] = useState<string>("");
-  const [imageFileName, setImageFileName] = useState("");
   const [confidence, setConfidence] = useState("High confidence");
   const [expertNotice, setExpertNotice] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -397,38 +394,17 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
 
   const runExtract = useServerFn(extractKnowledge);
 
-  const onTranscriptFile = async (file: File | undefined) => {
-    if (!file) return;
-    setTranscriptFileName(file.name);
-    const text = await file.text();
-    setTranscript((prev) => (prev ? prev + "\n\n" + text : text));
-  };
-
-  const onImageFile = (file: File | undefined) => {
-    if (!file) { setImageDataUrl(""); setImageFileName(""); return; }
-    setImageFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => setImageDataUrl(String(reader.result || ""));
-    reader.readAsDataURL(file);
-  };
-
   const generate = async () => {
     setError("");
-    if (!transcript.trim() && !imageDataUrl && !additionalInsights.trim()) {
-      setError("Add a transcript, an image of notes, or additional insights first.");
+    if (!transcript.trim() && !additionalInsights.trim()) {
+      setError("Paste a meeting transcript or add expert insights first.");
       return;
     }
     setIsGenerating(true);
     setDraft(null);
     try {
-      let imageBase64: string | undefined;
-      let imageMimeType: string | undefined;
-      if (imageDataUrl) {
-        const match = /^data:(.+?);base64,(.*)$/.exec(imageDataUrl);
-        if (match) { imageMimeType = match[1]; imageBase64 = match[2]; }
-      }
       const result = await runExtract({
-        data: { knowledgeArea, expertName, transcript, additionalInsights, imageBase64, imageMimeType },
+        data: { knowledgeArea, expertName, transcript, additionalInsights },
       });
       setDraft(result);
       setConfidence(result.recommendedConfidence);
@@ -445,24 +421,18 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
       draft.summary +
       (draft.keyPoints.length ? "\n\nKey points:\n- " + draft.keyPoints.join("\n- ") : "") +
       (additionalInsights.trim() ? "\n\nExpert insights:\n" + additionalInsights.trim() : "");
-    const sources: string[] = [];
-    if (transcriptFileName) sources.push(`Transcript: ${transcriptFileName}`);
-    else if (transcript.trim()) sources.push("Pasted transcript");
-    if (imageFileName) sources.push(`Notes image: ${imageFileName}`);
-    if (!sources.length) sources.push(draft.sourceLabel || "Expert manual entry");
 
     addKnowledge({
       area: knowledgeArea,
       expert: expertName.split(" · ")[0],
       text: body,
-      source: sources.join(" · "),
+      source: transcript.trim() ? "Pasted transcript" : (draft.sourceLabel || "Expert manual entry"),
       confidence,
       projectId: selectedProjectId || undefined,
     });
     setDraft(null);
-    setTranscript(""); setTranscriptFileName("");
+    setTranscript("");
     setAdditionalInsights("");
-    setImageDataUrl(""); setImageFileName("");
     setExpertNotice("Knowledge added. PM decision chat can now reuse this knowledge.");
   };
 
@@ -471,7 +441,7 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
       <div className="panel">
         <h2>Capture expert knowledge from meetings</h2>
         <p className="muted">
-          Upload a meeting transcript or a photo of handwritten notes. The AI drafts a knowledge entry that you can review, edit with additional insights, and approve. Approved entries are immediately available to Project Managers.
+          Paste a meeting transcript or type your insights directly. AI drafts a knowledge entry for you to review and approve — available to Project Managers instantly.
         </p>
         <div className="form-grid">
           <div>
@@ -505,32 +475,15 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
         <label>Meeting transcript</label>
         <textarea
           className="large-text"
-          placeholder="Paste meeting transcript here, or attach a .txt file below..."
+          placeholder="Paste meeting transcript here…"
           value={transcript}
           onChange={(e) => setTranscript(e.target.value)}
         />
-        <div className="form-grid">
-          <div>
-            <label>Attach transcript file</label>
-            <label className="attach-btn wide-attach" htmlFor="transcriptFile">Attach .txt transcript</label>
-            <input id="transcriptFile" type="file" accept=".txt,text/plain,.md" className="hidden-input"
-              onChange={(e) => onTranscriptFile(e.target.files?.[0])} />
-            <div className="file-text">{transcriptFileName ? "Attached: " + transcriptFileName : "No transcript file."}</div>
-          </div>
-          <div>
-            <label>Attach handwritten notes (image)</label>
-            <label className="attach-btn wide-attach" htmlFor="notesImage">Attach photo of notes</label>
-            <input id="notesImage" type="file" accept="image/*" className="hidden-input"
-              onChange={(e) => onImageFile(e.target.files?.[0])} />
-            <div className="file-text">{imageFileName ? "Attached: " + imageFileName : "No image attached."}</div>
-            {imageDataUrl && <img src={imageDataUrl} alt="notes preview" className="notes-preview" />}
-          </div>
-        </div>
 
         <label>Additional expert insights (optional)</label>
         <textarea
           className="large-text"
-          placeholder="Add anything the transcript or notes miss — context, caveats, decisions..."
+          placeholder="Add anything the transcript misses — context, caveats, decisions…"
           value={additionalInsights}
           onChange={(e) => setAdditionalInsights(e.target.value)}
         />
