@@ -1311,57 +1311,52 @@ function ExpertSelector({
 
   return (
     <>
-      <p><strong>Recommended experts — select who to route this question to</strong></p>
-      <div className="block">
-        <div className="two-col">
-          {f.experts.map((e, i) => {
-            const isSel = selected.has(e[0]);
-            return (
-              <div key={i} className={`item expert-card ${isSel ? "selected" : ""}`}>
-                <div className="expert-pick-header">
-                  <div style={{ flex: 1 }}>
-                    <h4>{e[0]}</h4>
-                    <p><strong>{e[1]}</strong></p>
-                    <p>{e[2]}</p>
-                    <div>
-                      <span className="tag green">{e[3]}</span>{" "}
-                      <span className="tag orange">{e[4]}</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`expert-select-btn ${isSel ? "selected" : ""}`}
-                    onClick={() => toggle(e[0])}
-                    disabled={sent}
-                    aria-pressed={isSel}
-                  >
-                    {isSel ? "✓ Selected" : "+ Select"}
-                  </button>
+      <p>
+        <strong>Recommended experts</strong>{" "}
+        <span className="muted" style={{ fontSize: 13 }}>— click a row to select or deselect</span>
+      </p>
+      <div className="expert-list">
+        {f.experts.map((e, i) => {
+          const isSel = selected.has(e[0]);
+          const color = EXPERT_DOMAINS[e[0]]?.color ?? "#667085";
+          const initials = e[0].split(" ").map((s) => s[0]).slice(0, 2).join("");
+          return (
+            <div key={i} className={`expert-row${isSel ? " selected" : ""}${sent ? " sent" : ""}`}>
+              <div className="expert-row-main" onClick={() => !sent && toggle(e[0])} role="button" aria-pressed={isSel}>
+                <div className={`expert-check-box${isSel ? " checked" : ""}`}>
+                  {isSel && <span>✓</span>}
                 </div>
-                {isSel && (
-                  <div style={{ marginTop: 10 }}>
-                    <label className="muted" style={{ fontSize: 12 }}>Question for {e[0].split(" ")[0]}</label>
-                    <textarea
-                      className="expert-question"
-                      value={questions[e[0]]}
-                      disabled={sent}
-                      onChange={(ev) =>
-                        setQuestions({ ...questions, [e[0]]: ev.target.value })
-                      }
-                    />
-                  </div>
-                )}
+                <div className="expert-avatar-sm" style={{ background: color }}>{initials}</div>
+                <div className="expert-row-info">
+                  <div className="expert-row-name">{e[0]}</div>
+                  <div className="expert-row-role">{e[1]} · {e[2]}</div>
+                </div>
+                <div className="expert-row-tags">
+                  <span className="tag green">{e[3]}</span>
+                  <span className="tag orange">{e[4]}</span>
+                </div>
               </div>
-            );
-          })}
-        </div>
+              {isSel && (
+                <div className="expert-row-question">
+                  <label>Question for {e[0].split(" ")[0]}</label>
+                  <textarea
+                    className="expert-question"
+                    value={questions[e[0]]}
+                    disabled={sent}
+                    onChange={(ev) => setQuestions({ ...questions, [e[0]]: ev.target.value })}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-      <div className="action-row expert-send-row">
-        <span className="muted" style={{ fontSize: 13, alignSelf: "center" }}>
+      <div className="expert-send-bar">
+        <span className="muted" style={{ fontSize: 13 }}>
           {selected.size} of {f.experts.length} expert{f.experts.length === 1 ? "" : "s"} selected
         </span>
         <button
-          className="action-btn expert-send-btn"
+          className="action-btn"
           onClick={submit}
           disabled={selected.size === 0 || sent}
         >
@@ -1369,7 +1364,7 @@ function ExpertSelector({
             ? "✓ Tickets sent"
             : selected.size === 0
               ? "Select at least one expert"
-              : `📨 Send ticket${selected.size === 1 ? "" : "s"} to ${selected.size} expert${selected.size === 1 ? "" : "s"}`}
+              : `Send tickets to ${selected.size} expert${selected.size === 1 ? "" : "s"}`}
         </button>
       </div>
     </>
