@@ -1,12 +1,12 @@
-export type Person = [string, string, string];
+export type Person = [string, string, string, string]; // [name, role, domain, email]
 
 export const adminPeople: Person[] = [
-  ['Sarah Klein', 'Project Manager', 'Decision owner for Power Module X'],
-  ['Dr. Lukas Müller', 'Reliability Expert', 'Thermal cycling, lifetime stress, reliability validation'],
-  ['Anna Weber', 'Supplier Qualification Expert', 'Previous supplier approval cases and decision memory'],
-  ['Markus Klein', 'Supply Chain Expert', 'Lead time, supplier risk, buffer stock'],
-  ['Thomas Richter', 'Quality Expert', 'Quality gates, customer risk, failure escape'],
-  ['Maria Hoffmann', 'Manufacturing Expert', 'Line compatibility, cycle time, production stability'],
+  ['Sarah Klein', 'Project Manager', 'Decision owner for Power Module X', 'sarah.klein@infineon.com'],
+  ['Dr. Lukas Müller', 'Reliability Expert', 'Thermal cycling, lifetime stress, reliability validation', 'lukas.mueller@infineon.com'],
+  ['Anna Weber', 'Supplier Qualification Expert', 'Previous supplier approval cases and decision memory', 'anna.weber@infineon.com'],
+  ['Markus Klein', 'Supply Chain Expert', 'Lead time, supplier risk, buffer stock', 'markus.klein@infineon.com'],
+  ['Thomas Richter', 'Quality Expert', 'Quality gates, customer risk, failure escape', 'thomas.richter@infineon.com'],
+  ['Maria Hoffmann', 'Manufacturing Expert', 'Line compatibility, cycle time, production stability', 'maria.hoffmann@infineon.com'],
 ];
 
 export type Category = {
