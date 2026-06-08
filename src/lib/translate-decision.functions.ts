@@ -38,7 +38,7 @@ export const translateDecision = createServerFn({ method: "POST" })
     if (!key) throw new Error("Missing GEMINI_API_KEY");
 
     const gemini = createGeminiProvider(key);
-    const model = gemini("gemini-2.0-flash");
+    const model = gemini("gemini-2.5-flash");
 
     const findingsText = data.technicalFindings.length
       ? data.technicalFindings.map((f, i) => `${i + 1}. ${f}`).join("\n")

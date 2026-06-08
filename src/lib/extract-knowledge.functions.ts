@@ -44,7 +44,7 @@ export const extractKnowledge = createServerFn({ method: "POST" })
     }
 
     const gemini = createGeminiProvider(key);
-    const model = gemini("gemini-2.0-flash");
+    const model = gemini("gemini-2.5-flash");
 
     const userParts: Array<
       | { type: "text"; text: string }

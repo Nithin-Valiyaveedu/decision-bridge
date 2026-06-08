@@ -50,7 +50,7 @@ export const classifyQuestion = createServerFn({ method: "POST" })
     if (!key) throw new Error("Missing GEMINI_API_KEY");
 
     const gemini = createGeminiProvider(key);
-    const model = gemini("gemini-2.0-flash");
+    const model = gemini("gemini-2.5-flash");
 
     const categoryList = (Object.keys(CATEGORY_DESCRIPTIONS) as (keyof typeof categoryMap)[])
       .map((k) => `  "${k}": ${CATEGORY_DESCRIPTIONS[k]}`)
