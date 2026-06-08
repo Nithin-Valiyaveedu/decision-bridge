@@ -9,12 +9,23 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthedLayout() {
   const router = useRouter();
+  const navigate = useNavigate();
   const role = useRole();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (!getRole()) navigate({ to: "/auth", replace: true });
+  }, [navigate]);
 
   const signOut = () => {
     clearRole();
     router.navigate({ to: "/auth", replace: true });
   };
+
+  if (!mounted) {
+    return <div className="db-root" />;
+  }
 
   return (
     <div className="db-root">
