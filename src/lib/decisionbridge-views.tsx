@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { extractKnowledge } from "@/lib/extract-knowledge.functions";
+import { translateDecision, type TranslationResult } from "@/lib/translate-decision.functions";
 import { addKnowledge, useKnowledge, type Knowledge } from "@/lib/knowledge-store";
 import { addTicket, answerTicket, useTickets, type Ticket } from "@/lib/ticket-store";
 import {
@@ -38,6 +39,10 @@ type Flow = Category & {
 };
 
 type ChatMsg = { type: "ai" | "user"; node: ReactNode; id: number };
+
+function getCategoryByArea(area: string): Category | undefined {
+  return Object.values(categoryMap).find((c) => c.area === area);
+}
 
 const businessImpactByArea: Record<string, string> = {
   "Supplier approval": "Approving Supplier B unlocks ~3 weeks of time-to-market and an estimated €120k in tooling savings, but locks production to a single source until backup qualification completes.",
@@ -124,16 +129,35 @@ function buildFlow(question: string, kb: Knowledge[]): Flow {
   };
 }
 
+const EXPERT_DOMAINS: Record<string, { areas: string[]; color: string }> = {
+  "Dr. Lukas Müller": { areas: ["Reliability", "Thermal cycling", "Lifetime stress"], color: "#1746a2" },
+  "Anna Weber": { areas: ["Supplier qualification", "Approval history", "Decision memory"], color: "#087443" },
+  "Markus Klein": { areas: ["Supply chain", "Lead time", "Supplier risk"], color: "#a14b00" },
+  "Thomas Richter": { areas: ["Quality gates", "Customer risk", "Failure escape"], color: "#6941c6" },
+  "Maria Hoffmann": { areas: ["Manufacturing", "Line compatibility", "Cycle time"], color: "#0b63b6" },
+  "Sarah Klein": { areas: ["Project management", "Decision ownership", "Stakeholder alignment"], color: "#667085" },
+};
+
 export function AdminView() {
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [onboarded, setOnboarded] = useState<Person[]>([]);
   const [adminNotice, setAdminNotice] = useState("");
+  const kb = useKnowledge();
+  const tickets = useTickets();
 
   const onboard = () => {
     const sel = Array.from(checked).map((i) => adminPeople[i]);
     setOnboarded(sel);
     setAdminNotice(`${sel.length} people onboarded to the project workspace.`);
   };
+
+  const expertStats = adminPeople.map((p) => {
+    const name = p[0];
+    const contributions = kb.filter((k) => k.expert === name).length;
+    const openTickets = tickets.filter((t) => t.assignedTo === name && t.status === "open").length;
+    const answered = tickets.filter((t) => t.assignedTo === name && t.status === "answered").length;
+    return { person: p, name, contributions, openTickets, answered };
+  });
 
   return (
     <section className="view">
@@ -175,6 +199,45 @@ export function AdminView() {
           </div>
           <button onClick={onboard}>Onboard selected people</button>
           {adminNotice && <div className="notice">{adminNotice}</div>}
+
+          <h3>Expertise coverage map</h3>
+          <p className="muted">Live overview of who covers what — and how active each expert is in the knowledge base.</p>
+          <div className="expertise-grid">
+            {expertStats.map(({ person, name, contributions, openTickets, answered }, i) => {
+              const domains = EXPERT_DOMAINS[name];
+              const initials = name.split(" ").map((s) => s[0]).slice(0, 2).join("");
+              const color = domains?.color ?? "#667085";
+              return (
+                <div key={i} className="expertise-card">
+                  <div className="expert-initials-badge" style={{ background: color }}>{initials}</div>
+                  <div className="expertise-info">
+                    <strong>{name}</strong>
+                    <span className="expertise-role">{person[1]}</span>
+                    <div className="expertise-tags">
+                      {(domains?.areas ?? [person[2]]).slice(0, 3).map((a, j) => (
+                        <span key={j} className="expertise-tag">{a}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="expertise-stats">
+                    <div className="expertise-stat">
+                      <span className="stat-num">{contributions}</span>
+                      <span className="stat-label">contributions</span>
+                    </div>
+                    <div className="expertise-stat">
+                      <span className="stat-num" style={{ color: openTickets > 0 ? "#a14b00" : "#667085" }}>{openTickets}</span>
+                      <span className="stat-label">open tickets</span>
+                    </div>
+                    <div className="expertise-stat">
+                      <span className="stat-num" style={{ color: answered > 0 ? "#087443" : "#667085" }}>{answered}</span>
+                      <span className="stat-label">answered</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           <h3>People currently in workspace</h3>
           {onboarded.length === 0 ? (
             <div className="empty-box">No people onboarded yet.</div>
@@ -462,28 +525,51 @@ function ExpertTicketsPanel({ expertName, myName }: { expertName: string; myName
           <div className="empty-box">No open tickets for {expertName.split(" · ")[0]}. Switch personas above to see other inboxes.</div>
         ) : (
           <div className="ticket-list">
-            {open.map((t) => (
-              <div key={t.id} className="ticket-card">
-                <div className="ticket-head">
-                  <div>
-                    <span className="ticket-pill open">Open</span>
-                    <strong>{t.title}</strong>
+            {open.map((t) => {
+              const cat = getCategoryByArea(t.area);
+              const teamTickets = tickets.filter(
+                (t2) => t2.area === t.area && t2.id !== t.id && t2.status === "open",
+              );
+              return (
+                <div key={t.id} className="ticket-card">
+                  <div className="ticket-head">
+                    <div>
+                      <span className="ticket-pill open">Open</span>
+                      <strong>{t.title}</strong>
+                    </div>
+                    <span className="ticket-meta">{new Date(t.createdAt).toLocaleString()}</span>
                   </div>
-                  <span className="ticket-meta">{new Date(t.createdAt).toLocaleString()}</span>
+
+                  {cat && (
+                    <div className="ticket-context">
+                      <div className="context-label">Why your input matters</div>
+                      <p className="muted">{cat.business}</p>
+                      {businessImpactByArea[t.area] && (
+                        <div className="context-impact">{businessImpactByArea[t.area]}</div>
+                      )}
+                      {teamTickets.length > 0 && (
+                        <p className="muted context-team">
+                          Also contributing:{" "}
+                          {teamTickets.map((t2) => t2.assignedTo).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="ticket-q"><strong>PM asked:</strong> "{t.sourceQuestion}"</p>
+                  <p className="muted">{t.question}</p>
+                  <textarea
+                    className="large-text"
+                    placeholder="Type your expert answer — your response will be translated to business language and used directly in the PM's decision brief."
+                    value={drafts[t.id] || ""}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [t.id]: e.target.value }))}
+                  />
+                  <div className="action-row">
+                    <button onClick={() => send(t)}>Send answer & save to knowledge base</button>
+                  </div>
                 </div>
-                <p className="ticket-q"><strong>PM asked:</strong> "{t.sourceQuestion}"</p>
-                <p className="muted">{t.question}</p>
-                <textarea
-                  className="large-text"
-                  placeholder="Type your expert answer..."
-                  value={drafts[t.id] || ""}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [t.id]: e.target.value }))}
-                />
-                <div className="action-row">
-                  <button onClick={() => send(t)}>Send answer & publish to knowledge base</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -592,6 +678,91 @@ function DecisionStoryGraph({ f }: { f: Flow }) {
   );
 }
 
+function AiTranslationCard({
+  f,
+  question,
+  onViewBrief,
+}: {
+  f: Flow;
+  question: string;
+  onViewBrief: () => void;
+}) {
+  const [result, setResult] = useState<TranslationResult | null>(null);
+  const [failed, setFailed] = useState(false);
+  const runTranslate = useServerFn(translateDecision);
+
+  useEffect(() => {
+    const findings = f.evidence
+      .filter((e) => e[2] !== "—")
+      .map((e) => e[0].slice(0, 200));
+    runTranslate({
+      data: { question, area: f.area, technicalFindings: findings, projectName: f.project },
+    })
+      .then((r) => setResult(r))
+      .catch(() => setFailed(true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (failed) {
+    return (
+      <>
+        <p className="muted">AI translation unavailable — showing knowledge base summary.</p>
+        <div className="action-row">
+          <button className="action-btn" onClick={onViewBrief}>View decision brief</button>
+        </div>
+      </>
+    );
+  }
+
+  if (!result) {
+    return (
+      <div className="translating-state">
+        <div className="translating-spinner" />
+        <div>
+          <strong>AI is translating technical findings to business language…</strong>
+          <p className="muted">Turning expert knowledge into a decision you can act on.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="translation-banner">
+        <span className="ai-badge">AI Translation Layer</span>
+        <h4>What this means for the business</h4>
+        <p className="muted">Technical findings translated to plain business language — no engineering background required.</p>
+      </div>
+      <div className="translation-grid">
+        <div className="translation-card translation-impact">
+          <span className="translation-label">Business Impact</span>
+          <p>{result.businessImpact}</p>
+        </div>
+        <div className="translation-card translation-timeline">
+          <span className="translation-label">Timeline Risk</span>
+          <p>{result.timelineRisk}</p>
+        </div>
+        <div className="translation-card translation-financial">
+          <span className="translation-label">Financial Signal</span>
+          <p>{result.financialSignal}</p>
+        </div>
+        <div className="translation-card translation-action">
+          <span className="translation-label">Recommended Action</span>
+          <p><strong>{result.recommendedAction}</strong></p>
+        </div>
+      </div>
+      {result.stakeholders.length > 0 && (
+        <p className="muted" style={{ marginTop: 10 }}>
+          <strong>Also inform:</strong> {result.stakeholders.join(" · ")}
+        </p>
+      )}
+      <div className="action-row">
+        <button className="action-btn" onClick={onViewBrief}>View full decision brief →</button>
+      </div>
+    </>
+  );
+}
+
 const STARTER_QUESTIONS = [
   "Can we approve Supplier B for Power Module X?",
   "What caused the defect increase on Line 3?",
@@ -614,8 +785,9 @@ export function PmChatView() {
       type: "ai",
       node: (
         <>
-          <p><strong>Hello — ask a project decision question in your own words.</strong></p>
-          <p>I check the expert knowledge base first. If an answer already exists, I give you a decision brief with a full evidence chain. If not, I show the right experts and create tickets.</p>
+          <p><strong>Ask your decision question in plain language.</strong></p>
+          <p>I search the expert knowledge base, translate technical findings into business terms, and give you a decision brief you can act on. If knowledge is missing, I identify the right experts and route questions directly to their inboxes.</p>
+          <p className="muted" style={{ fontSize: 12 }}>Your organization's expertise — structured, translated, and ready for decisions.</p>
         </>
       ),
     },
@@ -677,12 +849,23 @@ export function PmChatView() {
         <ScoreBreakdownPanel f={f} />
         <div className="action-row">
           {f.found ? (
-            <button className="action-btn" onClick={() => showDecisionBrief(f)}>Create decision brief</button>
+            <button className="action-btn" onClick={() => showAiTranslation(f)}>Translate findings to business language →</button>
           ) : (
             <button className="action-btn" onClick={() => showExperts(f)}>Show experts and prepare tickets</button>
           )}
         </div>
       </>
+    );
+  };
+
+  const showAiTranslation = (f: Flow) => {
+    appendMsg(
+      "ai",
+      <AiTranslationCard
+        f={f}
+        question={lastQuestionRef.current}
+        onViewBrief={() => showDecisionBrief(f)}
+      />,
     );
   };
 
