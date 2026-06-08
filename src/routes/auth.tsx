@@ -32,9 +32,9 @@ function AuthPage() {
       <main className="shell">
         <section className="app-card auth-card">
           <div className="auth-hero">
-            <div className="logo-mark auth-logo">DB</div>
-            <h1 className="auth-title">DecisionBridge</h1>
-            <p className="auth-subtitle">AI-powered decision intelligence for engineering teams</p>
+            <div className="logo-mark auth-logo">CI</div>
+            <h1 className="auth-title">Collaborative Insight</h1>
+            <p className="auth-subtitle">AI-powered decision intelligence for engineering organizations</p>
           </div>
 
           <div className="auth-body">
