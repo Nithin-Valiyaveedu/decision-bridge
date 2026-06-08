@@ -4,6 +4,7 @@ import { clearRole, getRole } from "@/lib/local-auth";
 import { useRole } from "@/lib/use-roles";
 
 export const Route = createFileRoute("/_authenticated")({
+  ssr: false,
   component: AuthedLayout,
 });
 
