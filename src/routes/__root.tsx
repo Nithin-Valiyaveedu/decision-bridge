@@ -1,112 +1,68 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  Outlet,
-  Link,
-  createRootRouteWithContext,
-  useRouter,
-  HeadContent,
-  Scripts,
-} from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
-
+import { Outlet, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
-function NotFoundComponent() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go home
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
-  const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Converts static HTML pages into interactive React Single Page Applications." },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Converts static HTML pages into interactive React Single Page Applications." },
+      { title: "Collaborative Insight — Infineon" },
+      { name: "description", content: "Turn siloed expert knowledge into structured, auditable decisions. Built for Infineon's engineering teams." },
+      { name: "author", content: "Infineon Technologies" },
+      { property: "og:title", content: "Collaborative Insight" },
+      { property: "og:description", content: "Expert knowledge → structured decisions. Capture, translate, and act on engineering expertise at scale." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "Converts static HTML pages into interactive React Single Page Applications." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/b53904e6-03d2-4c69-a54f-68c616716783/id-preview-f224fc6f--c880d1a4-af53-4460-b5a1-a75e8dd4feec.lovable.app-1780869888395.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/b53904e6-03d2-4c69-a54f-68c616716783/id-preview-f224fc6f--c880d1a4-af53-4460-b5a1-a75e8dd4feec.lovable.app-1780869888395.png" },
+      { name: "twitter:title", content: "Collaborative Insight" },
+      { name: "twitter:description", content: "Expert knowledge → structured decisions." },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
       },
     ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
-  notFoundComponent: NotFoundComponent,
-  errorComponent: ErrorComponent,
+  notFoundComponent: () => (
+    <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", fontFamily: "Inter, sans-serif", background: "#f8fafc" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 72, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>404</div>
+        <p style={{ color: "#64748b", margin: "12px 0 24px", fontSize: 15 }}>Page not found.</p>
+        <a href="/" style={{ color: "#009b3a", fontWeight: 600, fontSize: 14 }}>← Go home</a>
+      </div>
+    </div>
+  ),
+  errorComponent: ({ error, reset }) => {
+    console.error(error);
+    return (
+      <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", fontFamily: "Inter, sans-serif", background: "#f8fafc" }}>
+        <div style={{ textAlign: "center", maxWidth: 420 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Something went wrong</div>
+          <p style={{ color: "#64748b", fontSize: 13, marginBottom: 24 }}>{error?.message ?? "An unexpected error occurred."}</p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <button
+              onClick={reset}
+              style={{ padding: "8px 18px", borderRadius: 8, background: "#009b3a", color: "#fff", border: "none", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            >
+              Try again
+            </button>
+            <a
+              href="/"
+              style={{ padding: "8px 18px", borderRadius: 8, background: "#fff", color: "#334155", border: "1px solid #e2e8f0", fontWeight: 600, fontSize: 13, textDecoration: "none" }}
+            >
+              Go home
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  },
 });
 
 function RootShell({ children }: { children: ReactNode }) {
@@ -124,12 +80,5 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
-    </QueryClientProvider>
-  );
+  return <Outlet />;
 }
