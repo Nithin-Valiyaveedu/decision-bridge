@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useConnections, setConnection, removeConnection, useLlmConfig, type ConnectionConfig, type LlmProvider, type LlmConfig } from "@/lib/connection-store";
 import { useServerFn } from "@tanstack/react-start";
 import { extractKnowledge } from "@/lib/extract-knowledge.functions";
 import { translateDecision, type TranslationResult } from "@/lib/translate-decision.functions";
@@ -6,6 +7,8 @@ import { classifyQuestion, type ClassifyResult } from "@/lib/classify-question.f
 import { addKnowledge, useKnowledge, type Knowledge } from "@/lib/knowledge-store";
 import { addTicket, answerTicket, useTickets, type Ticket } from "@/lib/ticket-store";
 import { addProject, useProjects, type Project } from "@/lib/project-store";
+import { usePeople, setDemoEmail, initPeopleStore, resolveEmail } from "@/lib/people-store";
+import { searchGmail, buildGmailQuery, type GmailMessage } from "@/lib/search-gmail.functions";
 import {
   adminPeople,
   categoryMap,
@@ -36,6 +39,11 @@ type ScoreBreakdown = {
   recency: { value: number; max: number; note: string };
 };
 
+type ConflictPair = {
+  expertA: string; textA: string; stanceA: "approve" | "reject";
+  expertB: string; textB: string; stanceB: "approve" | "reject";
+};
+
 type Flow = Category & {
   found: boolean;
   key: string;
@@ -46,6 +54,7 @@ type Flow = Category & {
   missingInfo: string[];
   actions: string[];
   expertsConsulted: string[];
+  conflicts: ConflictPair[];
 };
 
 type ChatMsg = { type: "ai" | "user"; node: ReactNode; id: number };
@@ -70,6 +79,41 @@ const missingInfoByArea: Record<string, string[]> = {
   "New testing process": ["Test repeatability study", "PLM formal change approval", "Customer quality acceptance"],
 };
 
+const APPROVE_KW = ["approve", "approved", "pass", "passed", "clear", "cleared", "recommend", "proceed", "ready", "completed", "complete", "no failure", "zero failure", "successful", "all units", "no issues", "conditional approval"];
+const REJECT_KW  = ["reject", "fail", "failed", "outstanding", "not complete", "not ready", "delay", "block", "concern", "risky", "pending", "hold", "not approved", "need more", "requires additional", "unable", "incomplete", "not yet"];
+
+function stanceOf(text: string): "approve" | "reject" | "neutral" {
+  const t = text.toLowerCase();
+  const a = APPROVE_KW.filter((w) => t.includes(w)).length;
+  const r = REJECT_KW.filter((w) => t.includes(w)).length;
+  if (a > r) return "approve";
+  if (r > a) return "reject";
+  return "neutral";
+}
+
+function detectConflicts(matching: Knowledge[]): ConflictPair[] {
+  const byExpert: Record<string, Knowledge[]> = {};
+  for (const k of matching) {
+    (byExpert[k.expert] ??= []).push(k);
+  }
+  const names = Object.keys(byExpert);
+  const conflicts: ConflictPair[] = [];
+  for (let i = 0; i < names.length; i++) {
+    for (let j = i + 1; j < names.length; j++) {
+      const ea = names[i], eb = names[j];
+      const sa = stanceOf(byExpert[ea].map((k) => k.text).join(" "));
+      const sb = stanceOf(byExpert[eb].map((k) => k.text).join(" "));
+      if (sa !== "neutral" && sb !== "neutral" && sa !== sb) {
+        conflicts.push({
+          expertA: ea, textA: byExpert[ea][0].text.slice(0, 220), stanceA: sa,
+          expertB: eb, textB: byExpert[eb][0].text.slice(0, 220), stanceB: sb,
+        });
+      }
+    }
+  }
+  return conflicts;
+}
+
 function buildFlow(question: string, kb: Knowledge[], aiResult?: ClassifyResult): Flow {
   const key = aiResult?.categoryKey ?? classify(question);
   const base = categoryMap[key];
@@ -80,15 +124,18 @@ function buildFlow(question: string, kb: Knowledge[], aiResult?: ClassifyResult)
 
   // Score breakdown
   const evidenceMax = 40;
-  const evidence = Math.min(evidenceMax, matching.length * 18);
+  const confidencePoints = (c: string) => c.startsWith("High") ? 18 : c.startsWith("Medium") ? 12 : 6;
+  const evidence = Math.min(evidenceMax, matching.reduce((sum, k) => sum + confidencePoints(k.confidence), 0));
+  const conflicts = detectConflicts(matching);
   const agreementMax = 30;
   const uniqueExperts = new Set(matching.map((m) => m.expert)).size;
-  const agreement = Math.min(agreementMax, uniqueExperts * 18);
+  const rawAgreement = Math.min(agreementMax, uniqueExperts * 18);
+  const agreement = Math.max(0, rawAgreement - conflicts.length * 12);
   const recencyMax = 30;
   const newest = matching.reduce((a, b) => Math.max(a, b.createdAt), 0);
   const daysOld = newest ? (Date.now() - newest) / 86400000 : 999;
   const recency = newest ? (daysOld < 30 ? 30 : daysOld < 90 ? 20 : 10) : 0;
-  const score = found ? evidence + agreement + recency : 36;
+  const score = evidence + agreement + recency;
 
   const breakdown: ScoreBreakdown = {
     evidence: {
@@ -101,9 +148,11 @@ function buildFlow(question: string, kb: Knowledge[], aiResult?: ClassifyResult)
     agreement: {
       value: agreement,
       max: agreementMax,
-      note: uniqueExperts
-        ? `${uniqueExperts} expert${uniqueExperts === 1 ? "" : "s"} contributed.`
-        : "No expert has confirmed yet.",
+      note: conflicts.length > 0
+        ? `⚠ Conflict detected between ${conflicts.length} expert pair${conflicts.length > 1 ? "s" : ""} — agreement score reduced.`
+        : uniqueExperts
+          ? `${uniqueExperts} expert${uniqueExperts === 1 ? "" : "s"} contributed, views aligned.`
+          : "No expert has confirmed yet.",
     },
     recency: {
       value: found ? recency : 0,
@@ -138,6 +187,7 @@ function buildFlow(question: string, kb: Knowledge[], aiResult?: ClassifyResult)
     missingInfo: missingInfoByArea[base.area] || [],
     actions: [base.next, ...(found ? [] : ["Route open questions to recommended experts and create tickets."])],
     expertsConsulted: found ? Array.from(new Set(matching.map((m) => m.expert))) : [],
+    conflicts,
   };
 }
 
@@ -159,9 +209,19 @@ export function AdminView() {
   const [projAreas, setProjAreas] = useState<Set<string>>(
     new Set(["Supplier approval", "Manufacturing defect", "Pilot batch shipment"])
   );
+  const [editingEmail, setEditingEmail] = useState<string | null>(null);
+  const [demoEmailDraft, setDemoEmailDraft] = useState("");
   const kb = useKnowledge();
   const tickets = useTickets();
   const projects = useProjects();
+  const people = usePeople();
+
+  // Seed people store with defaults on first load
+  useEffect(() => {
+    initPeopleStore(
+      adminPeople.map(([name, role, domain, email]) => ({ name, role, domain, email }))
+    );
+  }, []);
 
   const toggleArea = (area: string) => {
     const next = new Set(projAreas);
@@ -228,23 +288,56 @@ export function AdminView() {
 
           <h3>Select employees to onboard</h3>
           <div className="people-list">
-            {adminPeople.map((p, i) => (
-              <label key={i} className="person-card check-person">
-                <input
-                  type="checkbox"
-                  checked={checked.has(i)}
-                  onChange={(e) => {
-                    const next = new Set(checked);
-                    if (e.target.checked) next.add(i); else next.delete(i);
-                    setChecked(next);
-                  }}
-                />
-                <div>
-                  <strong>{p[0]} · {p[1]}</strong>
-                  <span>{p[2]}</span>
+            {adminPeople.map((p, i) => {
+              const profile = people.find((x) => x.name === p[0]);
+              const activeEmail = profile?.demoEmail || p[3];
+              const isEditing = editingEmail === p[0];
+              return (
+                <div key={i} className="check-person-row">
+                  <label className="person-check-label">
+                    <input
+                      type="checkbox"
+                      checked={checked.has(i)}
+                      onChange={(e) => {
+                        const next = new Set(checked);
+                        if (e.target.checked) next.add(i); else next.delete(i);
+                        setChecked(next);
+                      }}
+                    />
+                    <div className="person-check-info">
+                      <strong>{p[0]} · {p[1]}</strong>
+                      <span>{p[2]}</span>
+                    </div>
+                  </label>
+                  <div className="person-email-col">
+                    {isEditing ? (
+                      <div className="person-email-edit">
+                        <input
+                          type="email"
+                          value={demoEmailDraft}
+                          onChange={(e) => setDemoEmailDraft(e.target.value)}
+                          placeholder={p[3]}
+                          autoFocus
+                        />
+                        <button className="person-email-save" onClick={() => {
+                          setDemoEmail(p[0], demoEmailDraft);
+                          setEditingEmail(null);
+                        }}>Save</button>
+                        <button className="person-email-cancel" onClick={() => setEditingEmail(null)}>✕</button>
+                      </div>
+                    ) : (
+                      <button
+                        className={`person-email-badge ${profile?.demoEmail ? "demo-override" : ""}`}
+                        title="Click to set demo email override"
+                        onClick={() => { setEditingEmail(p[0]); setDemoEmailDraft(profile?.demoEmail ?? ""); }}
+                      >
+                        {profile?.demoEmail ? "⚡ " : ""}{activeEmail}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </label>
-            ))}
+              );
+            })}
           </div>
           <button onClick={onboard}>Create project</button>
           {adminNotice && <div className="notice">{adminNotice}</div>}
@@ -330,10 +423,12 @@ export function AdminView() {
 
 export function ExpertView() {
   const [expertName, setExpertName] = useState(EXPERTS[0]);
-  const [tab, setTab] = useState<"capture" | "tickets" | "sources">("capture");
+  const [tab, setTab] = useState<"capture" | "tickets" | "connections">("capture");
   const tickets = useTickets();
   const myName = expertName.split(" · ")[0];
   const myOpen = tickets.filter((t) => t.assignedTo === myName && t.status === "open").length;
+  const connections = useConnections();
+  const connectedCount = Object.values(connections).filter((c) => c?.status === "connected").length;
 
   return (
     <section className="view">
@@ -351,14 +446,14 @@ export function ExpertView() {
           <button className={`expert-tab ${tab === "tickets" ? "active" : ""}`} onClick={() => setTab("tickets")}>
             My tickets{myOpen > 0 && <span className="tab-badge">{myOpen}</span>}
           </button>
-          <button className={`expert-tab ${tab === "sources" ? "active" : ""}`} onClick={() => setTab("sources")}>
-            Connected sources
+          <button className={`expert-tab ${tab === "connections" ? "active" : ""}`} onClick={() => setTab("connections")}>
+            Connections{connectedCount > 0 && <span className="tab-badge connected">{connectedCount}</span>}
           </button>
         </div>
       </div>
       {tab === "capture" && <ExpertCapturePanel expertName={expertName} />}
       {tab === "tickets" && <ExpertTicketsPanel expertName={expertName} myName={myName} />}
-      {tab === "sources" && <ExpertSourcesPanel expertName={expertName} />}
+      {tab === "connections" && <ConnectionsPanel />}
     </section>
   );
 }
@@ -373,16 +468,26 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
   const activeProject = projects.find((p) => p.id === selectedProjectId) ?? null;
   const availableAreas = activeProject ? activeProject.areas : [...ALL_AREAS];
   const [knowledgeArea, setKnowledgeArea] = useState(availableAreas[0] ?? "Supplier approval");
-  const [transcript, setTranscript] = useState("");
-  const [additionalInsights, setAdditionalInsights] = useState("");
   const [confidence, setConfidence] = useState("High confidence");
   const [expertNotice, setExpertNotice] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [simulating, setSimulating] = useState<string | null>(null);
+  const [meetingPlatform, setMeetingPlatform] = useState<MeetingPlatformKey>("teams");
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const connections = useConnections();
+  const [connectorContents, setConnectorContents] = useState<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    CONNECTORS.forEach((c) => { if (c.id !== "meeting") map[c.id] = c.sampleContent; });
+    Object.entries(MEETING_PLATFORMS).forEach(([k, v]) => { map[`meeting_${k}`] = v.sampleContent; });
+    return map;
+  });
   const [draft, setDraft] = useState<null | {
     summary: string;
     keyPoints: string[];
     recommendedConfidence: string;
     sourceLabel: string;
+    connectorId?: string;
+    connectorSource?: string;
+    connectorArea?: string;
   }>(null);
   const [error, setError] = useState("");
 
@@ -393,25 +498,95 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
   }, [selectedProjectId]);
 
   const runExtract = useServerFn(extractKnowledge);
+  const runSearchGmail = useServerFn(searchGmail);
+  const people = usePeople();
 
-  const generate = async () => {
-    setError("");
-    if (!transcript.trim() && !additionalInsights.trim()) {
-      setError("Paste a meeting transcript or add expert insights first.");
+  const [gmailMessages, setGmailMessages] = useState<GmailMessage[]>([]);
+  const [gmailSearching, setGmailSearching] = useState(false);
+  const [gmailError, setGmailError] = useState("");
+  const [gmailExtracting, setGmailExtracting] = useState<string | null>(null);
+
+  const expertShortName = expertName.split(" · ")[0];
+  const defaultEmail = adminPeople.find((p) => p[0] === expertShortName)?.[3] ?? "";
+  const resolvedEmail = resolveEmail(people, expertShortName, defaultEmail);
+
+  const gmailConn = connections["gmail"];
+  const gmailToken = gmailConn?.status === "connected" ? (gmailConn as Extract<typeof gmailConn, { id: "gmail"; status: "connected" }>).token : "";
+
+  const fetchGmailMessages = async () => {
+    if (!gmailToken) {
+      setGmailError("Connect Gmail first — go to the Connections tab and add your OAuth token.");
       return;
     }
-    setIsGenerating(true);
+    setGmailSearching(true);
+    setGmailMessages([]);
+    setGmailError("");
     setDraft(null);
     try {
-      const result = await runExtract({
-        data: { knowledgeArea, expertName, transcript, additionalInsights },
-      });
-      setDraft(result);
-      setConfidence(result.recommendedConfidence);
+      const query = buildGmailQuery(knowledgeArea, resolvedEmail);
+      const msgs = await runSearchGmail({ data: { token: gmailToken, query, maxResults: 5 } });
+      setGmailMessages(msgs);
+      if (msgs.length === 0) setGmailError("No emails found matching this area. Try a different knowledge area.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate knowledge.");
+      setGmailError(e instanceof Error ? e.message : String(e));
     } finally {
-      setIsGenerating(false);
+      setGmailSearching(false);
+    }
+  };
+
+  const extractFromGmail = async (msg: GmailMessage) => {
+    setGmailExtracting(msg.id);
+    setDraft(null);
+    setError("");
+    try {
+      const result = await runExtract({
+        data: {
+          knowledgeArea,
+          expertName,
+          transcript: `Email from: ${msg.from}\nDate: ${msg.date}\nSubject: ${msg.subject}\n\n${msg.body}`,
+          additionalInsights: "",
+        },
+      });
+      setDraft({
+        ...result,
+        connectorId: "gmail",
+        connectorSource: `Gmail · "${msg.subject}" · ${msg.from}`,
+        connectorArea: knowledgeArea,
+      });
+      setGmailMessages([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGmailExtracting(null);
+    }
+  };
+
+  const simulate = async (connector: typeof CONNECTORS[0] & { sampleArea: string; sampleSource: string; connectLabel: string }) => {
+    const contentKey = connector.id === "meeting" ? `meeting_${meetingPlatform}` : connector.id;
+    const content = connectorContents[contentKey] ?? connector.sampleContent;
+    if (!content?.trim()) return;
+    setSimulating(connector.id);
+    setDraft(null);
+    setError("");
+    try {
+      const result = await runExtract({
+        data: {
+          knowledgeArea: connector.sampleArea,
+          expertName,
+          transcript: content,
+          additionalInsights: "",
+        },
+      });
+      setDraft({
+        ...result,
+        connectorId: connector.id,
+        connectorSource: connector.sampleSource,
+        connectorArea: connector.sampleArea,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSimulating(null);
     }
   };
 
@@ -419,29 +594,28 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
     if (!draft) return;
     const body =
       draft.summary +
-      (draft.keyPoints.length ? "\n\nKey points:\n- " + draft.keyPoints.join("\n- ") : "") +
-      (additionalInsights.trim() ? "\n\nExpert insights:\n" + additionalInsights.trim() : "");
+      (draft.keyPoints.length ? "\n\nKey points:\n- " + draft.keyPoints.join("\n- ") : "");
 
     addKnowledge({
-      area: knowledgeArea,
+      area: draft.connectorArea ?? knowledgeArea,
       expert: expertName.split(" · ")[0],
       text: body,
-      source: transcript.trim() ? "Pasted transcript" : (draft.sourceLabel || "Expert manual entry"),
+      source: draft.connectorSource ?? `Auto: ${draft.connectorId ?? "connected"}`,
       confidence,
       projectId: selectedProjectId || undefined,
     });
     setDraft(null);
-    setTranscript("");
-    setAdditionalInsights("");
-    setExpertNotice("Knowledge added. PM decision chat can now reuse this knowledge.");
+    setExpertNotice("Knowledge captured and added to the base.");
   };
+
+  const autoCaptured = kb.filter((k) => k.source.startsWith("Auto:"));
 
   return (
     <div className="split-layout">
       <div className="panel">
         <h2>Capture expert knowledge from meetings</h2>
         <p className="muted">
-          Paste a meeting transcript or type your insights directly. AI drafts a knowledge entry for you to review and approve — available to Project Managers instantly.
+          Connect your tools and knowledge flows in automatically — no manual uploads needed.
         </p>
         <div className="form-grid">
           <div>
@@ -472,32 +646,152 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
           </div>
         </div>
 
-        <label>Meeting transcript</label>
-        <textarea
-          className="large-text"
-          placeholder="Paste meeting transcript here…"
-          value={transcript}
-          onChange={(e) => setTranscript(e.target.value)}
-        />
+        <div className="connector-grid">
+          {CONNECTORS.map((c) => {
+            if (c.id === "meeting") {
+              const mp = MEETING_PLATFORMS[meetingPlatform];
+              const meetingConnector = { ...c, ...mp };
+              const meetingKey = `meeting_${meetingPlatform}`;
+              const isExpanded = expandedCard === "meeting";
+              return (
+                <div key="meeting" className="connector-card connected">
+                  <div className="connector-head">
+                    <div className="connector-icon" style={{ background: mp.color }}>{mp.icon}</div>
+                    <div className="connector-info">
+                      <strong>Meeting transcript</strong>
+                      <select
+                        value={meetingPlatform}
+                        onChange={(e) => setMeetingPlatform(e.target.value as MeetingPlatformKey)}
+                        className="meeting-platform-select"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <option value="teams">Microsoft Teams</option>
+                        <option value="zoom">Zoom</option>
+                        <option value="gmeet">Google Meet</option>
+                      </select>
+                    </div>
+                    <div className="meeting-transcript-status">
+                      <span className="meeting-transcript-dot" />
+                      <span className="meeting-transcript-label">Transcript ready</span>
+                      <button className="connector-edit-btn" onClick={() => setExpandedCard(isExpanded ? null : "meeting")}>
+                        {isExpanded ? "hide" : "edit"}
+                      </button>
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <textarea
+                      className="connector-content-edit"
+                      value={connectorContents[meetingKey] ?? ""}
+                      onChange={(e) => setConnectorContents({ ...connectorContents, [meetingKey]: e.target.value })}
+                      placeholder="Transcript content…"
+                    />
+                  )}
+                  <button
+                    className="action-btn secondary"
+                    style={{ width: "100%", marginTop: 12 }}
+                    onClick={() => simulate(meetingConnector)}
+                    disabled={!!simulating}
+                  >
+                    {simulating === "meeting" ? `Receiving from ${mp.name}…` : mp.connectLabel}
+                  </button>
+                </div>
+              );
+            }
+            if (c.id === "gmail") {
+              return (
+                <div key="gmail" className="connector-card gmail-card connected">
+                  <div className="connector-head">
+                    <div className="connector-icon" style={{ background: c.color }}>{c.icon}</div>
+                    <div className="connector-info">
+                      <strong>{c.name}</strong>
+                      {gmailToken
+                        ? <span className="gmail-expert-email">● {resolvedEmail || "email not set"}</span>
+                        : <span className="gmail-expert-email" style={{ color: "var(--rose)" }}>Not connected — add token in Connections tab</span>
+                      }
+                    </div>
+                    {gmailToken && <div className="connector-dot connected" />}
+                  </div>
 
-        <label>Additional expert insights (optional)</label>
-        <textarea
-          className="large-text"
-          placeholder="Add anything the transcript misses — context, caveats, decisions…"
-          value={additionalInsights}
-          onChange={(e) => setAdditionalInsights(e.target.value)}
-        />
+                  <button
+                    className="action-btn secondary"
+                    style={{ width: "100%", marginTop: 10 }}
+                    onClick={fetchGmailMessages}
+                    disabled={gmailSearching || !!gmailExtracting || !gmailToken}
+                  >
+                    {gmailSearching ? "Searching Gmail…" : `Search emails about "${knowledgeArea}"`}
+                  </button>
 
-        <div className="action-row">
-          <button onClick={generate} disabled={isGenerating}>
-            {isGenerating ? "Generating..." : "Generate knowledge with AI"}
-          </button>
+                  {gmailError && <p className="gmail-error">{gmailError}</p>}
+
+                  {gmailMessages.length > 0 && (
+                    <div className="gmail-messages">
+                      <p className="gmail-found-label">Found {gmailMessages.length} email{gmailMessages.length !== 1 ? "s" : ""} — select one to extract</p>
+                      {gmailMessages.map((msg) => (
+                        <div key={msg.id} className="gmail-msg-card">
+                          <div className="gmail-msg-meta">
+                            <span className="gmail-msg-subject">{msg.subject}</span>
+                            <span className="gmail-msg-date">{msg.date}</span>
+                          </div>
+                          <span className="gmail-msg-from">{msg.from}</span>
+                          <p className="gmail-msg-snippet">{msg.snippet}</p>
+                          <button
+                            className="action-btn"
+                            style={{ marginTop: 8, fontSize: 12 }}
+                            onClick={() => extractFromGmail(msg)}
+                            disabled={!!gmailExtracting}
+                          >
+                            {gmailExtracting === msg.id ? "Extracting…" : "Extract knowledge"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            const isExpanded = expandedCard === c.id;
+            return (
+              <div key={c.id} className="connector-card connected">
+                <div className="connector-head">
+                  <div className="connector-icon" style={{ background: c.color }}>{c.icon}</div>
+                  <div className="connector-info">
+                    <strong>{c.name}</strong>
+                    <span>{c.detail}</span>
+                  </div>
+                  <button className="connector-edit-btn" onClick={() => setExpandedCard(isExpanded ? null : c.id)}>
+                    {isExpanded ? "hide" : "edit"}
+                  </button>
+                </div>
+                {isExpanded && (
+                  <textarea
+                    className="connector-content-edit"
+                    value={connectorContents[c.id] ?? ""}
+                    onChange={(e) => setConnectorContents({ ...connectorContents, [c.id]: e.target.value })}
+                    placeholder={`Paste ${c.name} content here…`}
+                  />
+                )}
+                <button
+                  className="action-btn secondary"
+                  style={{ width: "100%", marginTop: 12 }}
+                  onClick={() => simulate(c)}
+                  disabled={!!simulating}
+                >
+                  {simulating === c.id ? `Connecting to ${c.name}…` : c.connectLabel}
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         {error && <div className="notice" style={{ background: "#fdecec", color: "#a02020" }}>{error}</div>}
 
         {draft && (
           <div className="block draft-block">
+            {draft.connectorId && (
+              <div className="auto-capture-badge">
+                Auto-captured from {CONNECTORS.find((c) => c.id === draft.connectorId)?.name}
+              </div>
+            )}
             <h3>AI-drafted knowledge entry</h3>
             <p><strong>Summary:</strong> {draft.summary}</p>
             {draft.keyPoints.length > 0 && (
@@ -506,7 +800,11 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
                 <ul>{draft.keyPoints.map((p, i) => <li key={i}>{p}</li>)}</ul>
               </>
             )}
-            <p className="muted">Suggested source: {draft.sourceLabel} · Suggested confidence: {draft.recommendedConfidence}</p>
+            <p className="muted">
+              {draft.connectorId
+                ? `Area: ${draft.connectorArea} · Confidence: ${draft.recommendedConfidence}`
+                : `Suggested source: ${draft.sourceLabel} · Suggested confidence: ${draft.recommendedConfidence}`}
+            </p>
             <div className="action-row">
               <button onClick={acceptDraft}>Add to knowledge base</button>
               <button className="action-btn secondary" onClick={() => setDraft(null)}>Discard draft</button>
@@ -515,6 +813,24 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
         )}
 
         {expertNotice && <div className="notice">{expertNotice}</div>}
+
+        {autoCaptured.length > 0 && (
+          <>
+            <h3 style={{ marginTop: 24 }}>Auto-captured entries</h3>
+            <div className="knowledge-feed">
+              {autoCaptured.map((k) => (
+                <div key={k.id} className="knowledge-row">
+                  <div className="knowledge-row-head">
+                    <strong>{k.area}</strong>
+                    <span className="auto-source-badge">{k.source}</span>
+                  </div>
+                  <span style={{ whiteSpace: "pre-wrap" }}>{k.expert}: {k.text}</span>
+                  <span>{k.confidence}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
       <aside className="side-info">
         <h3>Knowledge currently available</h3>
@@ -560,8 +876,8 @@ const CONNECTORS = [
     name: "Jira",
     icon: "J",
     color: "#0052CC",
-    status: "connected" as const,
-    detail: "Power Module X · auto-syncing tickets",
+    detail: "Tickets, comments & status updates",
+    connectLabel: "Extract from Jira",
     sampleContent: `TICKET PMX-2847: Supplier B Qualification Status Update
 Reporter: Dr. Lukas Müller | Project: Power Module X
 
@@ -569,192 +885,407 @@ Thermal cycling tests for Supplier B completed. 94% pass rate across 1000 cycles
 
 Recommendation: Conditional approval for pilot volumes. Full production release should wait for final HTOL confirmation.`,
     sampleArea: "Supplier approval",
-    sampleSource: "Auto: Jira · PMX-2847",
+    sampleSource: "Jira · PMX-2847",
   },
   {
     id: "slack",
     name: "Slack",
     icon: "S",
     color: "#4A154B",
-    status: "connected" as const,
-    detail: "#engineering-decisions · live",
+    detail: "Channels, threads & messages",
+    connectLabel: "Extract from Slack",
     sampleContent: `Thread: Power Module X — Supplier B Decision
 @anna.weber: Supplier qualification audit passed April. OTD rate 96% over 12 months. Quality management system approved. Recommending approval for pilot volumes.
 @markus.klein: Lead time is 6 weeks. Current buffer stock covers 8 weeks. Single-source risk until Supplier C qualifies in Q4. Pilot approval now prevents production gaps.
 @dr.mueller: Reliability nearly complete. HTOL still running — won't block pilot but should gate full production ramp.`,
     sampleArea: "Supplier approval",
-    sampleSource: "Auto: Slack · #engineering-decisions",
+    sampleSource: "Slack · #engineering-decisions",
   },
   {
     id: "gmail",
     name: "Gmail",
     icon: "G",
     color: "#EA4335",
-    status: "configure" as const,
-    detail: "Not connected",
-    sampleContent: "",
-    sampleArea: "",
-    sampleSource: "",
+    detail: "Inbox · decision-relevant emails",
+    connectLabel: "Extract from Gmail",
+    sampleContent: `From: dr.lukas.mueller@infineon.com
+To: power-module-x-team@infineon.com
+Subject: Re: Pilot batch shipment — quality gate sign-off
+
+Team,
+
+Following today's review: all critical quality gates have been passed for the first pilot batch. AQL sampling shows 0 critical defects across 500 units. Electrical characterisation within ±2% of nominal spec.
+
+I am formally signing off the pilot batch for shipment. Customer delivery can proceed as planned. Post-shipment monitoring protocol (weekly feedback loop for 4 weeks) to be initiated by Quality.
+
+Lukas`,
+    sampleArea: "Pilot batch shipment",
+    sampleSource: "Gmail · dr.mueller",
   },
   {
-    id: "teams",
-    name: "Teams",
-    icon: "T",
-    color: "#6264A7",
-    status: "configure" as const,
-    detail: "Not connected",
+    id: "meeting",
+    name: "Meeting transcript",
+    icon: "",
+    color: "",
+    detail: "",
+    connectLabel: "",
     sampleContent: "",
     sampleArea: "",
     sampleSource: "",
   },
 ];
 
-function ExpertSourcesPanel({ expertName }: { expertName: string }) {
-  const projects = useProjects();
-  const kb = useKnowledge();
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(
-    () => projects[0]?.id ?? ""
-  );
-  const [simulating, setSimulating] = useState<string | null>(null);
-  const [draft, setDraft] = useState<null | {
-    summary: string; keyPoints: string[]; recommendedConfidence: string; sourceLabel: string;
-    connectorId: string; area: string; source: string;
-  }>(null);
-  const [notice, setNotice] = useState("");
-  const runExtract = useServerFn(extractKnowledge);
+const MEETING_PLATFORMS = {
+  teams: {
+    name: "Microsoft Teams",
+    icon: "T",
+    color: "#6264A7",
+    detail: "Meeting transcript",
+    connectLabel: "Extract from Teams",
+    sampleContent: `[Teams meeting transcript — Power Module X Engineering Review]
+Attendees: Thomas Richter (Quality), Maria Hoffmann (Manufacturing), Dr. Lukas Müller (Reliability)
 
-  const autoCaptured = kb.filter((k) => k.source.startsWith("Auto:"));
+Thomas Richter: Root cause confirmed on Line 3 defect cluster. Solder paste viscosity was out of spec due to incorrect storage temp — batch traced and quarantined. 47 units affected, all in WIP, none shipped. Line cleared and revalidated.
 
-  const simulate = async (connector: typeof CONNECTORS[0]) => {
-    if (!connector.sampleContent) return;
-    setSimulating(connector.id);
-    setDraft(null);
-    setNotice("");
-    try {
-      const result = await runExtract({
-        data: {
-          knowledgeArea: connector.sampleArea,
-          expertName,
-          transcript: connector.sampleContent,
-          additionalInsights: "",
-        },
-      });
-      setDraft({
-        ...result,
-        connectorId: connector.id,
-        area: connector.sampleArea,
-        source: connector.sampleSource,
-      });
-    } catch {
-      setNotice("Could not process incoming content. Check your connection.");
-    } finally {
-      setSimulating(null);
+Maria Hoffmann: Process parameters locked. Added storage temp check to daily pre-shift checklist. Defect rate back to baseline below 0.3%.
+
+Dr. Müller: Reliability sign-off given. No customer exposure confirmed.
+
+Thomas Richter: Recommending we close the defect investigation and lift the quality gate for Line 3.`,
+    sampleArea: "Manufacturing defect",
+    sampleSource: "Teams meeting · Power Module X",
+  },
+  zoom: {
+    name: "Zoom",
+    icon: "Z",
+    color: "#2D8CFF",
+    detail: "Meeting transcript",
+    connectLabel: "Extract from Zoom",
+    sampleContent: `[Zoom transcript — Supplier Review Meeting]
+Participants: Anna Weber (Supplier Qual.), Dr. Lukas Müller (Reliability), Supplier B representative
+
+Anna Weber: Supplier B passed all quality management checkpoints in last week's audit. OTD rate 96.2% over trailing 12 months.
+
+Dr. Müller: Thermal cycling results are within spec from reliability side. Conditionally cleared. HTOL expected end of month — won't block pilot.
+
+Supplier B rep: We can commit to 6-week lead time for pilot volumes, 4-week emergency window.
+
+Anna Weber: I'm recommending approval for pilot volumes. We document single-source risk and revisit when Supplier C qualifies in Q4.`,
+    sampleArea: "Supplier approval",
+    sampleSource: "Zoom meeting · supplier review",
+  },
+  gmeet: {
+    name: "Google Meet",
+    icon: "M",
+    color: "#1A73E8",
+    detail: "Meeting transcript",
+    connectLabel: "Extract from Google Meet",
+    sampleContent: `[Google Meet — Pilot Batch Sign-off Review]
+Attendees: Thomas Richter (Quality), Maria Hoffmann (Manufacturing), Sarah Klein (PM)
+
+Thomas Richter: AQL inspection complete on first 500 units. Zero critical defects. Three minor cosmetic issues within acceptance criteria. Quality gate passed — signing off.
+
+Maria Hoffmann: Line ran at 98.3% yield for this batch, above our 97% threshold. Process was stable throughout.
+
+Sarah Klein: Customer delivery window is confirmed for next week. Do we have all sign-offs?
+
+Thomas Richter: Yes, this batch is cleared for shipment.
+
+Maria Hoffmann: Agreed — all clear from manufacturing.`,
+    sampleArea: "Pilot batch shipment",
+    sampleSource: "Google Meet · pilot sign-off",
+  },
+} as const;
+
+type MeetingPlatformKey = keyof typeof MEETING_PLATFORMS;
+
+const CONNECTION_DEFS = [
+  {
+    id: "gmail" as const,
+    name: "Gmail",
+    icon: "G",
+    color: "#EA4335",
+    description: "Read emails and extract decision-relevant knowledge automatically.",
+    mcpDefault: "https://gmailmcp.googleapis.com/mcp/v1",
+    mcpHint: "Official Google Gmail MCP server",
+  },
+  {
+    id: "jira" as const,
+    name: "Jira",
+    icon: "J",
+    color: "#0052CC",
+    description: "Pull tickets, comments and status updates from your Jira instance.",
+    mcpDefault: "https://mcp.atlassian.com/jira",
+    mcpHint: "Official Atlassian MCP server — deploy internally for data residency",
+  },
+  {
+    id: "slack" as const,
+    name: "Slack",
+    icon: "S",
+    color: "#4A154B",
+    description: "Monitor decision channels and extract knowledge from threads.",
+    mcpDefault: "https://mcp.slack.com/v1",
+    mcpHint: "Official Slack MCP server by Salesforce",
+  },
+  {
+    id: "teams" as const,
+    name: "Microsoft Teams",
+    icon: "T",
+    color: "#6264A7",
+    description: "Capture meeting transcripts and channel messages.",
+    mcpDefault: "https://mcp.teams.microsoft.com/v1",
+    mcpHint: "Microsoft Teams MCP server (preview — deploy internally)",
+  },
+  {
+    id: "zoom" as const,
+    name: "Zoom",
+    icon: "Z",
+    color: "#2D8CFF",
+    description: "Receive post-meeting transcripts and action items.",
+    mcpDefault: "https://mcp.zoom.us/v1",
+    mcpHint: "Zoom MCP server",
+  },
+  {
+    id: "gmeet" as const,
+    name: "Google Meet",
+    icon: "M",
+    color: "#1A73E8",
+    description: "Capture live captions and meeting summaries.",
+    mcpDefault: "https://meet.googleapis.com/mcp/v1",
+    mcpHint: "Google Meet MCP server",
+  },
+];
+
+const LLM_OPTIONS: { provider: LlmProvider; name: string; badge: string; badgeColor: string; residency: string; residencyColor: string; desc: string; hasEndpoint?: boolean; hasKey?: boolean; hasRegion?: boolean }[] = [
+  {
+    provider: "gemini",
+    name: "Google Gemini",
+    badge: "Cloud",
+    badgeColor: "#4285F4",
+    residency: "Data sent to Google servers",
+    residencyColor: "orange",
+    desc: "Gemini 2.5 Flash via Google AI Studio. Fastest setup, no infrastructure needed.",
+  },
+  {
+    provider: "internal",
+    name: "Internal LLM",
+    badge: "On-premise",
+    badgeColor: "#2E7D32",
+    residency: "Data stays within your network",
+    residencyColor: "green",
+    desc: "Ollama or vLLM running inside your corporate VPN. Full data residency — zero external calls.",
+    hasEndpoint: true,
+  },
+  {
+    provider: "azure",
+    name: "Azure OpenAI",
+    badge: "Private cloud",
+    badgeColor: "#0078D4",
+    residency: "Data stays in your Azure tenant",
+    residencyColor: "green",
+    desc: "Azure OpenAI Service with your own deployment. Covered by Microsoft's DPA and EU data boundaries.",
+    hasEndpoint: true,
+    hasKey: true,
+  },
+  {
+    provider: "bedrock",
+    name: "AWS Bedrock",
+    badge: "Private cloud",
+    badgeColor: "#FF9900",
+    residency: "Data stays in your AWS region",
+    residencyColor: "green",
+    desc: "AWS Bedrock — Claude, Titan, or Llama hosted in your AWS account. Regional data residency.",
+    hasRegion: true,
+  },
+];
+
+function ConnectionsPanel() {
+  const connections = useConnections();
+  const [llmConfig, saveLlm] = useLlmConfig();
+  const [endpoints, setEndpoints] = useState<Partial<Record<string, string>>>({});
+  const [gmailToken, setGmailToken] = useState("");
+  const [llmFields, setLlmFields] = useState<Record<string, string>>({});
+
+  const getEndpoint = (id: string, defaultVal: string) => endpoints[id] ?? defaultVal;
+
+  const connect = (def: typeof CONNECTION_DEFS[number]) => {
+    const ep = getEndpoint(def.id, def.mcpDefault).trim();
+    if (!ep) return;
+    if (def.id === "gmail") {
+      setConnection({ id: "gmail", status: "connected", mcpEndpoint: ep, token: gmailToken.trim() });
+    } else {
+      setConnection({ id: def.id as Exclude<typeof def.id, "gmail">, status: "connected", mcpEndpoint: ep });
     }
   };
 
-  const save = () => {
-    if (!draft) return;
-    const body = draft.summary +
-      (draft.keyPoints.length ? "\n\nKey points:\n- " + draft.keyPoints.join("\n- ") : "");
-    addKnowledge({
-      area: draft.area,
-      expert: expertName.split(" · ")[0],
-      text: body,
-      source: draft.source,
-      confidence: draft.recommendedConfidence,
-      projectId: selectedProjectId || undefined,
-    });
-    setDraft(null);
-    setNotice("Knowledge captured automatically and added to the base.");
+  const activeLlm = llmConfig.provider;
+
+  const saveLlmConfig = (provider: LlmProvider) => {
+    if (provider === "gemini") { saveLlm({ provider: "gemini" }); return; }
+    if (provider === "internal") {
+      saveLlm({ provider: "internal", endpoint: llmFields.internal_endpoint ?? "" });
+    } else if (provider === "azure") {
+      saveLlm({ provider: "azure", endpoint: llmFields.azure_endpoint ?? "", apiKey: llmFields.azure_key ?? "" });
+    } else if (provider === "bedrock") {
+      saveLlm({ provider: "bedrock", region: llmFields.bedrock_region ?? "eu-west-1", modelId: llmFields.bedrock_model ?? "anthropic.claude-3-5-sonnet-20241022-v2:0" });
+    }
   };
 
   return (
-    <div className="single-layout">
-      <div className="panel">
-        <h2>Connected sources</h2>
-        <p className="muted">
-          Knowledge flows in automatically from the tools your team already uses — no manual upload needed.
-          Connect once, and every relevant update is extracted and available to decision makers instantly.
-        </p>
+    <div className="connections-panel">
+      <div className="connections-header">
+        <h2>Connections</h2>
+        <p className="muted">Point each connector at its MCP server endpoint — the AI reads directly from your tools, no file uploads needed. Deploy MCP servers inside your VPN for full data residency.</p>
+      </div>
 
-        {projects.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <label>Capture to project</label>
-            <select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}>
-              <option value="">— No project —</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-        )}
+      <div className="connections-list">
+        {CONNECTION_DEFS.map((def) => {
+          const conn = connections[def.id];
+          const isConnected = conn?.status === "connected";
+          const endpoint = isConnected
+            ? (conn as Extract<ConnectionConfig, { status: "connected" }>).mcpEndpoint
+            : getEndpoint(def.id, def.mcpDefault);
 
-        <div className="connector-grid">
-          {CONNECTORS.map((c) => (
-            <div key={c.id} className={`connector-card ${c.status}`}>
-              <div className="connector-head">
-                <div className="connector-icon" style={{ background: c.color }}>{c.icon}</div>
-                <div className="connector-info">
-                  <strong>{c.name}</strong>
-                  <span>{c.detail}</span>
+          return (
+            <div key={def.id} className={`conn-card ${isConnected ? "connected" : ""}`}>
+              <div className="conn-card-main">
+                <div className="conn-icon" style={{ background: def.color }}>{def.icon}</div>
+                <div className="conn-info">
+                  <div className="conn-name-row">
+                    <strong>{def.name}</strong>
+                    <span className="mcp-badge">MCP</span>
+                    {isConnected && <span className="conn-status-dot" />}
+                  </div>
+                  <p className="conn-desc">{def.description}</p>
+                  {isConnected ? (
+                    <span className="conn-account">{endpoint}</span>
+                  ) : (
+                    <span className="conn-mcp-hint">{def.mcpHint}</span>
+                  )}
                 </div>
-                <div className={`connector-dot ${c.status}`} />
+                <div className="conn-actions">
+                  {isConnected ? (
+                    <button className="conn-btn disconnect" onClick={() => removeConnection(def.id)}>Disconnect</button>
+                  ) : (
+                    <button className="conn-btn connect" onClick={() => connect(def)}>Connect</button>
+                  )}
+                </div>
               </div>
-              {c.status === "connected" ? (
-                <button
-                  className="action-btn secondary"
-                  style={{ width: "100%", marginTop: 12 }}
-                  onClick={() => simulate(c)}
-                  disabled={simulating === c.id}
-                >
-                  {simulating === c.id ? "Receiving…" : "Simulate incoming →"}
-                </button>
-              ) : (
-                <button className="action-btn secondary" style={{ width: "100%", marginTop: 12, opacity: .5 }} disabled>
-                  Configure
-                </button>
+              {!isConnected && (
+                <div className="conn-form">
+                  <div className="conn-endpoint-row">
+                    <label className="conn-endpoint-label">MCP endpoint</label>
+                    <input
+                      className="conn-endpoint-input"
+                      type="text"
+                      value={getEndpoint(def.id, def.mcpDefault)}
+                      onChange={(e) => setEndpoints((p) => ({ ...p, [def.id]: e.target.value }))}
+                      placeholder={def.mcpDefault}
+                    />
+                  </div>
+                  {def.id === "gmail" && (
+                    <div className="conn-gmail-token-row">
+                      <label className="conn-endpoint-label">OAuth token</label>
+                      <input
+                        className="conn-endpoint-input"
+                        type="password"
+                        value={gmailToken}
+                        onChange={(e) => setGmailToken(e.target.value)}
+                        placeholder="ya29.a0AT3oNZ9x…"
+                      />
+                      <a
+                        href="https://developers.google.com/oauthplayground"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="conn-token-hint"
+                      >
+                        Get token ↗
+                      </a>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-          ))}
+          );
+        })}
+      </div>
+
+      {/* ── LLM configuration ─────────────────────── */}
+      <div className="llm-section">
+        <div className="llm-section-header">
+          <h3>AI / LLM configuration</h3>
+          <p className="muted">Choose where AI inference runs. For regulated industries, keep everything on-premise — the same models, zero data leaving your network.</p>
         </div>
-
-        {draft && (
-          <div className="block draft-block" style={{ marginTop: 20 }}>
-            <div className="auto-capture-badge">
-              Auto-captured from {CONNECTORS.find((c) => c.id === draft.connectorId)?.name}
-            </div>
-            <h3>Extracted knowledge</h3>
-            <p><strong>Summary:</strong> {draft.summary}</p>
-            {draft.keyPoints.length > 0 && (
-              <>
-                <p><strong>Key points:</strong></p>
-                <ul>{draft.keyPoints.map((p, i) => <li key={i}>{p}</li>)}</ul>
-              </>
-            )}
-            <p className="muted">Area: {draft.area} · Confidence: {draft.recommendedConfidence}</p>
-            <div className="action-row">
-              <button onClick={save}>Add to knowledge base</button>
-              <button className="action-btn secondary" onClick={() => setDraft(null)}>Dismiss</button>
-            </div>
-          </div>
-        )}
-
-        {notice && <div className="notice">{notice}</div>}
-
-        <h3>Auto-captured entries</h3>
-        {autoCaptured.length === 0 ? (
-          <div className="empty-box">No auto-captured entries yet. Click "Simulate incoming" on a connected source above.</div>
-        ) : (
-          <div className="knowledge-feed">
-            {autoCaptured.map((k) => (
-              <div key={k.id} className="knowledge-row">
-                <div className="knowledge-row-head">
-                  <strong>{k.area}</strong>
-                  <span className="auto-source-badge">{k.source}</span>
+        <div className="llm-grid">
+          {LLM_OPTIONS.map((opt) => {
+            const isActive = activeLlm === opt.provider;
+            return (
+              <button
+                key={opt.provider}
+                className={`llm-card ${isActive ? "active" : ""}`}
+                onClick={() => { if (!opt.hasEndpoint && !opt.hasKey && !opt.hasRegion) saveLlmConfig(opt.provider); else saveLlm({ ...(llmConfig.provider === opt.provider ? llmConfig : { provider: opt.provider }) } as LlmConfig); }}
+              >
+                <div className="llm-card-top">
+                  <div className="llm-name-row">
+                    <span className="llm-name">{opt.name}</span>
+                    <span className="llm-badge" style={{ background: opt.badgeColor }}>{opt.badge}</span>
+                  </div>
+                  <p className="llm-desc">{opt.desc}</p>
                 </div>
-                <span style={{ whiteSpace: "pre-wrap" }}>{k.expert}: {k.text}</span>
-                <span>{k.confidence}</span>
-              </div>
-            ))}
-          </div>
+                <div className={`llm-residency llm-residency-${opt.residencyColor}`}>
+                  <span className="llm-residency-dot" />
+                  {opt.residency}
+                </div>
+                {isActive && opt.hasEndpoint && (
+                  <div className="llm-fields" onClick={(e) => e.stopPropagation()}>
+                    <label>Endpoint URL</label>
+                    <input
+                      type="text"
+                      placeholder={opt.provider === "internal" ? "http://ollama.internal:11434/v1" : "https://yourorg.openai.azure.com/"}
+                      value={llmFields[`${opt.provider}_endpoint`] ?? ""}
+                      onChange={(e) => setLlmFields((p) => ({ ...p, [`${opt.provider}_endpoint`]: e.target.value }))}
+                    />
+                    {opt.hasKey && (
+                      <>
+                        <label style={{ marginTop: 8 }}>API key</label>
+                        <input
+                          type="password"
+                          placeholder="Azure OpenAI API key"
+                          value={llmFields.azure_key ?? ""}
+                          onChange={(e) => setLlmFields((p) => ({ ...p, azure_key: e.target.value }))}
+                        />
+                      </>
+                    )}
+                    <button className="action-btn" style={{ marginTop: 10, fontSize: 12 }} onClick={() => saveLlmConfig(opt.provider)}>Save</button>
+                  </div>
+                )}
+                {isActive && opt.hasRegion && (
+                  <div className="llm-fields" onClick={(e) => e.stopPropagation()}>
+                    <label>AWS region</label>
+                    <input
+                      type="text"
+                      placeholder="eu-west-1"
+                      value={llmFields.bedrock_region ?? ""}
+                      onChange={(e) => setLlmFields((p) => ({ ...p, bedrock_region: e.target.value }))}
+                    />
+                    <label style={{ marginTop: 8 }}>Model ID</label>
+                    <input
+                      type="text"
+                      placeholder="anthropic.claude-3-5-sonnet-20241022-v2:0"
+                      value={llmFields.bedrock_model ?? ""}
+                      onChange={(e) => setLlmFields((p) => ({ ...p, bedrock_model: e.target.value }))}
+                    />
+                    <button className="action-btn" style={{ marginTop: 10, fontSize: 12 }} onClick={() => saveLlmConfig(opt.provider)}>Save</button>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {activeLlm !== "gemini" && (
+          <p className="llm-note">
+            <strong>Note:</strong> This prototype always calls Gemini server-side. In production, swap the provider in <code>ai-gateway.server.ts</code> based on this stored config — the Vercel AI SDK supports all four providers with identical interfaces.
+          </p>
         )}
       </div>
     </div>
@@ -767,18 +1298,20 @@ function ExpertTicketsPanel({ expertName, myName }: { expertName: string; myName
   const open = mine.filter((t) => t.status === "open");
   const answered = mine.filter((t) => t.status === "answered");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [confidences, setConfidences] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
 
   const send = (t: Ticket) => {
     const answer = (drafts[t.id] || "").trim();
     if (!answer) { setNotice("Write an answer first."); return; }
+    const confidence = confidences[t.id] || "Medium confidence";
     answerTicket(t.id, answer);
     addKnowledge({
       area: t.area,
       expert: myName,
       text: `Response to PM question "${t.sourceQuestion}":\n\n${answer}`,
       source: `Expert ticket reply · ${t.title}`,
-      confidence: "High confidence",
+      confidence,
       projectId: t.projectId,
     });
     setDrafts((d) => ({ ...d, [t.id]: "" }));
@@ -838,7 +1371,16 @@ function ExpertTicketsPanel({ expertName, myName }: { expertName: string; myName
                     value={drafts[t.id] || ""}
                     onChange={(e) => setDrafts((d) => ({ ...d, [t.id]: e.target.value }))}
                   />
-                  <div className="action-row">
+                  <div className="action-row ticket-answer-row">
+                    <select
+                      className="ticket-confidence-select"
+                      value={confidences[t.id] || "Medium confidence"}
+                      onChange={(e) => setConfidences((c) => ({ ...c, [t.id]: e.target.value }))}
+                    >
+                      <option>High confidence</option>
+                      <option>Medium confidence</option>
+                      <option>Low confidence</option>
+                    </select>
                     <button onClick={() => send(t)}>Send answer & save to knowledge base</button>
                   </div>
                 </div>
@@ -1051,6 +1593,7 @@ export function PmChatView() {
   const tickets = useTickets();
   const projects = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [pmTab, setPmTab] = useState<"chat" | "log">("chat");
 
   const activeProject = projects.find((p) => p.id === selectedProjectId) ?? null;
 
@@ -1066,6 +1609,7 @@ export function PmChatView() {
     (t) => t.status === "answered" && (!activeProject || t.projectId === activeProject.id || !t.projectId),
   );
 
+  const [isThinking, setIsThinking] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       id: 0,
@@ -1081,10 +1625,11 @@ export function PmChatView() {
   ]);
   const [projectName, setProjectName] = useState("Power Module X");
   const [question, setQuestion] = useState("");
-  const [pmFiles, setPmFiles] = useState<string[]>([]);
   const msgIdRef = useRef(1);
   const chatRef = useRef<HTMLDivElement>(null);
-  const lastQuestionRef = useRef<string>("");
+  const lastQuestionRef = useRef<string>(
+    typeof window !== "undefined" ? (localStorage.getItem("db_last_pm_q") ?? "") : ""
+  );
   const runClassify = useServerFn(classifyQuestion);
 
   const scrollChat = () => {
@@ -1162,6 +1707,29 @@ export function PmChatView() {
       "ai",
       <>
         <p><strong>Decision Brief</strong></p>
+        {f.conflicts.length > 0 && (
+          <div className="conflict-banner">
+            <div className="conflict-banner-head">
+              <span className="conflict-icon">⚠</span>
+              <strong>Expert conflict detected</strong>
+              <span className="conflict-sub">{f.conflicts.length} conflicting position{f.conflicts.length > 1 ? "s" : ""} found in the knowledge base — resolution recommended before deciding.</span>
+            </div>
+            {f.conflicts.map((c, i) => (
+              <div key={i} className="conflict-pair">
+                <div className={`conflict-side ${c.stanceA}`}>
+                  <span className="conflict-stance">{c.stanceA === "approve" ? "✓ Supports" : "✗ Against"}</span>
+                  <strong>{c.expertA.split(" · ")[0]}</strong>
+                  <p>"{c.textA}{c.textA.length >= 220 ? "…" : ""}"</p>
+                </div>
+                <div className={`conflict-side ${c.stanceB}`}>
+                  <span className="conflict-stance">{c.stanceB === "approve" ? "✓ Supports" : "✗ Against"}</span>
+                  <strong>{c.expertB.split(" · ")[0]}</strong>
+                  <p>"{c.textB}{c.textB.length >= 220 ? "…" : ""}"</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         <DecisionStoryGraph f={f} />
         <div className="brief-grid">
           <div className="brief-card brief-reco">
@@ -1208,7 +1776,7 @@ export function PmChatView() {
           </table>
         </div>
         <div className="action-row">
-          <button className="action-btn secondary" onClick={() => exportBrief(f)}>Export brief</button>
+          <button className="action-btn secondary" onClick={() => exportBrief(f)}>Export PDF</button>
           <button className="action-btn" onClick={() => showExperts(f)}>Show experts to contact</button>
         </div>
       </>
@@ -1250,57 +1818,149 @@ export function PmChatView() {
 
 
   const exportBrief = (f: Flow) => {
-    const text = `DecisionBridge — Decision Brief
+    const conflictSection = f.conflicts.length > 0
+      ? `<div class="pdf-conflict">
+          <h3>⚠ Expert Conflict Detected</h3>
+          ${f.conflicts.map((c) => `
+            <div class="pdf-conflict-pair">
+              <div class="pdf-conflict-side ${c.stanceA}">
+                <span class="pdf-stance">${c.stanceA === "approve" ? "✓ Supports" : "✗ Against"}</span>
+                <strong>${c.expertA.split(" · ")[0]}</strong>
+                <p>"${c.textA}"</p>
+              </div>
+              <div class="pdf-conflict-side ${c.stanceB}">
+                <span class="pdf-stance">${c.stanceB === "approve" ? "✓ Supports" : "✗ Against"}</span>
+                <strong>${c.expertB.split(" · ")[0]}</strong>
+                <p>"${c.textB}"</p>
+              </div>
+            </div>`).join("")}
+          <p class="pdf-conflict-note">Resolution required before final decision. Consider requesting a joint review from both experts.</p>
+        </div>`
+      : "";
 
-Project: ${projectName}
-Decision type: ${f.foundTitle}
-Final recommendation: ${f.recommendation}
-Readiness Score: ${f.score}%
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Decision Brief — ${projectName}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; font-size: 12px; color: #0f172a; background: #fff; padding: 40px 48px; line-height: 1.6; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #009b3a; padding-bottom: 16px; margin-bottom: 28px; }
+    .brand { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #009b3a; }
+    h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; margin-top: 6px; color: #0f172a; }
+    .meta { text-align: right; font-size: 11px; color: #64748b; }
+    .score-row { display: flex; align-items: center; gap: 20px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; }
+    .score-num { font-size: 36px; font-weight: 800; color: #009b3a; font-variant-numeric: tabular-nums; min-width: 72px; }
+    .score-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #009b3a; margin-bottom: 4px; }
+    .score-note { font-size: 12px; color: #334155; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+    .card-full { grid-column: 1 / -1; }
+    .tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #009b3a; margin-bottom: 6px; display: block; }
+    .card h3 { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    .card p { font-size: 12px; color: #475569; }
+    ul { padding-left: 16px; }
+    li { font-size: 12px; color: #475569; margin-bottom: 3px; }
+    .card.risk { border-left: 3px solid #f59e0b; }
+    .card.missing { border-left: 3px solid #e11d48; }
+    .card.reco { border-left: 3px solid #009b3a; background: #f0fdf4; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+    th { text-align: left; padding: 7px 8px; border-bottom: 1.5px solid #e2e8f0; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 9.5px; }
+    td { padding: 7px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; color: #334155; }
+    tr:last-child td { border-bottom: none; }
+    .pdf-conflict { border: 1.5px solid #fde68a; background: #fffbeb; border-radius: 10px; padding: 16px 18px; margin-bottom: 20px; page-break-inside: avoid; }
+    .pdf-conflict h3 { font-size: 13px; color: #92400e; margin-bottom: 12px; }
+    .pdf-conflict-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .pdf-conflict-side { border-radius: 8px; padding: 10px 12px; font-size: 11px; }
+    .pdf-conflict-side.approve { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .pdf-conflict-side.reject  { background: #fff1f2; border: 1px solid #fecdd3; }
+    .pdf-stance { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+    .approve .pdf-stance { color: #009b3a; }
+    .reject .pdf-stance  { color: #e11d48; }
+    .pdf-conflict-note { font-size: 11px; color: #92400e; margin-top: 6px; font-style: italic; }
+    .footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; }
+    @media print { body { padding: 24px 32px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="brand">Collaborative Insight · Decision Brief</div>
+      <h1>${projectName}</h1>
+      <p style="font-size:11px;color:#64748b;margin-top:4px">${f.foundTitle} decision</p>
+    </div>
+    <div class="meta">
+      <div>Readiness Score</div>
+      <div style="font-size:22px;font-weight:800;color:#009b3a">${f.score}%</div>
+      <div style="margin-top:4px">${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</div>
+    </div>
+  </div>
 
-Reason:
-${f.reason}
+  <div class="score-row">
+    <div class="score-num">${f.score}%</div>
+    <div>
+      <div class="score-label">Decision Readiness</div>
+      <div class="score-note">${f.found ? "Decision supported by expert knowledge. Conditions below must be met." : "Knowledge gaps identified. Expert input required before deciding."}</div>
+    </div>
+  </div>
 
-Business impact:
-${f.businessImpact}
+  ${conflictSection}
 
-Risk:
-${f.risk}
+  <div class="grid">
+    <div class="card reco card-full">
+      <span class="tag">Final Recommendation</span>
+      <h3>${f.recommendation}</h3>
+      <p>${f.reason}</p>
+    </div>
+    <div class="card">
+      <span class="tag">Business Impact</span>
+      <p>${f.businessImpact}</p>
+    </div>
+    <div class="card risk">
+      <span class="tag">Risk</span>
+      <p>${f.risk}</p>
+    </div>
+    <div class="card missing">
+      <span class="tag">Missing Information</span>
+      ${f.missingInfo.length ? `<ul>${f.missingInfo.map((m) => `<li>${m}</li>`).join("")}</ul>` : "<p>No critical gaps identified.</p>"}
+    </div>
+    <div class="card">
+      <span class="tag">Recommended Actions</span>
+      <ul>${f.actions.map((a) => `<li>${a}</li>`).join("")}</ul>
+    </div>
+  </div>
 
-Missing information:
-${f.missingInfo.map((m) => `- ${m}`).join("\n") || "- None identified"}
+  <div class="card" style="margin-bottom:20px">
+    <span class="tag">Evidence Traceability</span>
+    <table>
+      <thead><tr><th>Evidence</th><th>Source</th><th>Expert</th><th>Confidence</th></tr></thead>
+      <tbody>${f.evidence.map((e) => `<tr><td>${e[0]}</td><td>${e[1]}</td><td>${e[2]}</td><td>${e[3]}</td></tr>`).join("")}</tbody>
+    </table>
+  </div>
 
-Recommended actions:
-${f.actions.map((a) => `- ${a}`).join("\n")}
+  <div class="footer">
+    <span>Generated by Collaborative Insight · Infineon Hackathon 2025</span>
+    <span>${new Date().toISOString()}</span>
+  </div>
+</body>
+</html>`;
 
-Experts consulted:
-${f.expertsConsulted.map((e) => `- ${e}`).join("\n") || "- (none yet)"}
-
-Evidence:
-${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confidence: ${e[3]}`).join("\n")}`;
-    const blob = new Blob([text.trim()], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "DecisionBridge_Brief.txt";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const w = window.open("", "_blank", "width=860,height=1000");
+    if (!w) { alert("Allow pop-ups to export PDF."); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 600);
   };
 
   const ask = async (q: string) => {
     lastQuestionRef.current = q;
+    localStorage.setItem("db_last_pm_q", q);
     appendMsg("user", <p>{q}</p>);
     setQuestion("");
-
-    // Show spinner while Gemini classifies
-    const thinkingId = msgIdRef.current;
-    appendMsg("ai", (
-      <div className="translating-state">
-        <div className="translating-spinner" />
-        <span>Searching knowledge base…</span>
-      </div>
-    ));
+    setIsThinking(true);
 
     let flow: Flow;
     try {
@@ -1321,37 +1981,29 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
       flow = buildFlow(q, scopedKb(kbRef.current));
     }
 
+    setIsThinking(false);
     setProjectName(activeProject ? activeProject.name : flow.project);
 
     const chip = flow.found
       ? <span className="result-chip found">Existing expert knowledge found</span>
       : <span className="result-chip missing">Knowledge gap found</span>;
 
-    // Replace the spinner message with the Language Bridge result
-    setMessages((prev) => [
-      ...prev.filter((m) => m.id !== thinkingId),
-      {
-        id: msgIdRef.current++,
-        type: "ai" as const,
-        node: (
-          <>
-            {chip}
-            <p>I understood this as a <strong>{flow.foundTitle}</strong> decision.</p>
-            <div className="block">
-              <h4>Language Bridge</h4>
-              <div className="two-col">
-                <div className="item"><span>PM / business view</span><p>{flow.business}</p></div>
-                <div className="item"><span>Technical expert view</span><p>{flow.technical}</p></div>
-              </div>
-            </div>
-            <div className="action-row">
-              <button className="action-btn" onClick={() => showKnowledge(flow)}>Check expert knowledge base</button>
-            </div>
-          </>
-        ),
-      },
-    ]);
-    scrollChat();
+    appendMsg("ai", (
+      <>
+        {chip}
+        <p>I understood this as a <strong>{flow.foundTitle}</strong> decision.</p>
+        <div className="block">
+          <h4>Language Bridge</h4>
+          <div className="two-col">
+            <div className="item"><span>PM / business view</span><p>{flow.business}</p></div>
+            <div className="item"><span>Technical expert view</span><p>{flow.technical}</p></div>
+          </div>
+        </div>
+        <div className="action-row">
+          <button className="action-btn" onClick={() => showKnowledge(flow)}>Check expert knowledge base</button>
+        </div>
+      </>
+    ));
   };
 
   const sendQuestion = () => {
@@ -1363,15 +2015,22 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
     ask(q);
   };
 
-  const fileText = useMemo(
-    () => (pmFiles.length ? "Attached: " + pmFiles.join(", ") : "No files attached. DecisionBridge will use the expert knowledge base."),
-    [pmFiles]
-  );
-
   const showStarters = messages.length === 1;
+
+  const logEvents = [...kb, ...tickets].length;
 
   return (
     <section className="view pm-view">
+      <div className="pm-tabs">
+        <button className={`pm-tab ${pmTab === "chat" ? "active" : ""}`} onClick={() => setPmTab("chat")}>Ask a question</button>
+        <button className={`pm-tab ${pmTab === "log" ? "active" : ""}`} onClick={() => setPmTab("log")}>
+          Decision log{logEvents > 0 && <span className="tab-badge">{logEvents}</span>}
+        </button>
+      </div>
+      {pmTab === "log" && (
+        <PmDecisionLog kb={kb} tickets={tickets} projects={projects} selectedProjectId={selectedProjectId} />
+      )}
+      {pmTab === "chat" && <>
       <section className="chat-area" ref={chatRef}>
         {(openTickets.length > 0 || answeredTickets.length > 0) && (
           <div className="ticket-banner">
@@ -1395,6 +2054,17 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
             <div className="bubble">{m.node}</div>
           </div>
         ))}
+        {isThinking && (
+          <div className="message ai">
+            <div className="avatar">AI</div>
+            <div className="bubble">
+              <div className="translating-state">
+                <div className="translating-spinner" />
+                <span>Searching knowledge base…</span>
+              </div>
+            </div>
+          </div>
+        )}
         {showStarters && (
           <div className="starter-chips">
             <div className="starter-label">Try a starter question:</div>
@@ -1439,12 +2109,7 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
             <option>Medium impact</option>
             <option>Low impact</option>
           </select>
-          <label className="attach-btn" htmlFor="fileUpload">Attach file</label>
-          <input id="fileUpload" type="file" multiple className="hidden-input"
-            onChange={(e) => setPmFiles(Array.from(e.target.files ?? []).map((f) => f.name))}
-          />
         </div>
-        <div className="file-text">{fileText}</div>
         <div className="input-row">
           <textarea className="question-input" placeholder="Type your decision question here..."
             value={question} onChange={(e) => setQuestion(e.target.value)}
@@ -1452,7 +2117,130 @@ ${f.evidence.map((e) => `- ${e[0]} | Source: ${e[1]} | Owner: ${e[2]} | Confiden
           <button onClick={sendQuestion}>Send</button>
         </div>
       </section>
+      </>}
     </section>
+  );
+}
+
+function PmDecisionLog({
+  kb, tickets, projects, selectedProjectId,
+}: {
+  kb: Knowledge[];
+  tickets: ReturnType<typeof useTickets>;
+  projects: ReturnType<typeof useProjects>;
+  selectedProjectId: string;
+}) {
+  const project = projects.find((p) => p.id === selectedProjectId) ?? null;
+
+  type TlEvent =
+    | { kind: "knowledge"; ts: number; area: string; expert: string; source: string; text: string }
+    | { kind: "ticket"; ts: number; area: string; assignedTo: string; question: string; status: string; answer?: string; answeredAt?: number }
+    | { kind: "conflict"; ts: number; area: string; expertA: string; stanceA: string; expertB: string; stanceB: string };
+
+  const scopedKb = kb.filter((k) => !project || k.projectId === project.id);
+
+  // Detect conflicts per area in the current KB
+  const areaGroups: Record<string, Knowledge[]> = {};
+  for (const k of scopedKb) {
+    (areaGroups[k.area] ??= []).push(k);
+  }
+  const conflictEvents: TlEvent[] = [];
+  for (const [area, entries] of Object.entries(areaGroups)) {
+    const pairs = detectConflicts(entries);
+    for (const c of pairs) {
+      const ts = Math.max(...entries.map((e) => e.createdAt));
+      conflictEvents.push({ kind: "conflict", ts, area, expertA: c.expertA, stanceA: c.stanceA, expertB: c.expertB, stanceB: c.stanceB });
+    }
+  }
+
+  const events: TlEvent[] = [
+    ...scopedKb
+      .map((k): TlEvent => ({ kind: "knowledge", ts: k.createdAt, area: k.area, expert: k.expert, source: k.source, text: k.text.slice(0, 160) + (k.text.length > 160 ? "…" : "") })),
+    ...tickets
+      .filter((t) => !project || t.projectId === project.id)
+      .map((t): TlEvent => ({ kind: "ticket", ts: t.createdAt, area: t.area, assignedTo: t.assignedTo, question: t.question, status: t.status, answer: t.answer, answeredAt: t.answeredAt })),
+    ...conflictEvents,
+  ].sort((a, b) => b.ts - a.ts);
+
+  const fmt = (ts: number) => {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return "just now";
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  };
+
+  const kbCount = events.filter((e) => e.kind === "knowledge").length;
+  const ticketCount = events.filter((e) => e.kind === "ticket").length;
+  const answeredCount = tickets.filter((t) => t.status === "answered" && (!project || t.projectId === project.id)).length;
+  const conflictCount = conflictEvents.length;
+
+  return (
+    <div className="decision-log">
+      <div className="log-header">
+        <div>
+          <h2>Decision log</h2>
+          <p className="muted">{project ? `Project: ${project.name}` : "All projects"} · full audit trail of captured knowledge and expert tickets</p>
+        </div>
+        <div className="log-stats">
+          <div className="log-stat"><strong>{kbCount}</strong><span>knowledge entries</span></div>
+          <div className="log-stat"><strong>{answeredCount}/{ticketCount}</strong><span>tickets answered</span></div>
+          {conflictCount > 0 && (
+            <div className="log-stat conflict"><strong>{conflictCount}</strong><span>conflict{conflictCount > 1 ? "s" : ""} detected</span></div>
+          )}
+        </div>
+      </div>
+
+      {events.length === 0 ? (
+        <div className="empty-box">No activity yet. Capture knowledge from the Expert view or ask a question in the chat to create tickets.</div>
+      ) : (
+        <div className="timeline">
+          {events.map((e, i) => (
+            <div key={i} className={`tl-event ${e.kind}`}>
+              <div className="tl-left">
+                <div className={`tl-dot ${e.kind === "knowledge" ? "green" : e.kind === "conflict" ? "red" : e.kind === "ticket" && e.status === "answered" ? "blue" : "orange"}`} />
+                {i < events.length - 1 && <div className="tl-line" />}
+              </div>
+              <div className="tl-body">
+                <div className="tl-head">
+                  <span className={`tl-tag ${e.kind === "knowledge" ? "green" : e.kind === "conflict" ? "red" : e.kind === "ticket" && e.status === "answered" ? "blue" : "orange"}`}>
+                    {e.kind === "knowledge" ? "Knowledge captured" : e.kind === "conflict" ? "⚠ Conflict detected" : e.status === "answered" ? "Expert answered" : "Ticket sent"}
+                  </span>
+                  <span className="tl-area">{e.area}</span>
+                  <span className="tl-time">{fmt(e.ts)}</span>
+                </div>
+                {e.kind === "knowledge" && (
+                  <>
+                    <p className="tl-text">{e.text}</p>
+                    <div className="tl-meta">{e.expert} · {e.source}</div>
+                  </>
+                )}
+                {e.kind === "ticket" && (
+                  <>
+                    <p className="tl-text"><strong>Q:</strong> {e.question}</p>
+                    {e.answer && <p className="tl-text tl-answer"><strong>A:</strong> {e.answer}</p>}
+                    <div className="tl-meta">Assigned to {e.assignedTo}{e.answeredAt ? ` · answered ${fmt(e.answeredAt)}` : " · pending"}</div>
+                  </>
+                )}
+                {e.kind === "conflict" && (
+                  <div className="tl-conflict-body">
+                    <div className={`tl-conflict-side ${e.stanceA}`}>
+                      <strong>{e.expertA.split(" · ")[0]}</strong>
+                      <span>{e.stanceA === "approve" ? "✓ Supports" : "✗ Against"}</span>
+                    </div>
+                    <div className="tl-conflict-vs">vs</div>
+                    <div className={`tl-conflict-side ${e.stanceB}`}>
+                      <strong>{e.expertB.split(" · ")[0]}</strong>
+                      <span>{e.stanceB === "approve" ? "✓ Supports" : "✗ Against"}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1467,9 +2255,37 @@ function ExpertSelector({
   projectId?: string;
   onCreated: (persisted: Ticket[]) => void;
 }) {
-  const defaultSelected = f.tickets.length > 0
-    ? new Set<string>(f.tickets.map((t) => t[1]))
-    : new Set<string>(f.experts.map((e) => e[0]));
+  const kb = useKnowledge();
+  const tickets = useTickets();
+
+  // Build expertise depth per expert from the knowledge base
+  const expertStats = useMemo(() => {
+    return f.experts.map((e) => {
+      const name = e[0];
+      const areaEntries = kb.filter((k) => k.expert === name && k.area === f.area);
+      const totalEntries = kb.filter((k) => k.expert === name);
+      const lastEntry = totalEntries.sort((a, b) => b.createdAt - a.createdAt)[0];
+      const daysSince = lastEntry
+        ? Math.floor((Date.now() - lastEntry.createdAt) / 86400000)
+        : null;
+      const openTickets = tickets.filter((t) => t.assignedTo === name && t.status === "open").length;
+      const answeredTickets = tickets.filter((t) => t.assignedTo === name && t.status === "answered").length;
+      // Rank score: area contributions × 4 + total × 1 + answered tickets × 2
+      const rank = areaEntries.length * 4 + totalEntries.length + answeredTickets * 2;
+      return { name, areaEntries: areaEntries.length, totalEntries: totalEntries.length, daysSince, openTickets, answeredTickets, rank };
+    });
+  }, [kb, tickets, f.experts, f.area]);
+
+  // Sort experts by rank descending
+  const sortedExperts = useMemo(() => {
+    const withStats = f.experts.map((e, i) => ({ e, stats: expertStats[i] }));
+    return withStats.sort((a, b) => b.stats.rank - a.stats.rank);
+  }, [f.experts, expertStats]);
+
+  const bestMatchName = sortedExperts[0]?.e[0];
+  const maxAreaEntries = Math.max(1, ...expertStats.map((s) => s.areaEntries));
+
+  const defaultSelected = new Set<string>(sortedExperts.map((x) => x.e[0]));
   const [selected, setSelected] = useState<Set<string>>(defaultSelected);
   const [questions, setQuestions] = useState<Record<string, string>>(() => {
     const map: Record<string, string> = {};
@@ -1492,7 +2308,7 @@ function ExpertSelector({
   const submit = () => {
     if (selected.size === 0 || sent) return;
     const persisted: Ticket[] = [];
-    for (const e of f.experts) {
+    for (const { e } of sortedExperts) {
       if (!selected.has(e[0])) continue;
       const match = f.tickets.find((t) => t[1] === e[0]);
       persisted.push(
@@ -1510,27 +2326,61 @@ function ExpertSelector({
     onCreated(persisted);
   };
 
+  if (sent) {
+    return (
+      <div className="tickets-sent-confirm">
+        <span className="tickets-sent-icon">✓</span>
+        <div>
+          <strong>{selected.size} expert ticket{selected.size === 1 ? "" : "s"} sent</strong>
+          <p className="muted" style={{ fontSize: 12, margin: "2px 0 0" }}>
+            {Array.from(selected).join(", ")} · Switch to the Expert view to see responses.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      <p>
-        <strong>Recommended experts</strong>{" "}
-        <span className="muted" style={{ fontSize: 13 }}>— click a row to select or deselect</span>
-      </p>
+      <div className="expert-selector-header">
+        <strong>Recommended experts</strong>
+        <span className="muted" style={{ fontSize: 12 }}>Ranked by knowledge depth · click to select</span>
+      </div>
       <div className="expert-list">
-        {f.experts.map((e, i) => {
+        {sortedExperts.map(({ e, stats }, i) => {
           const isSel = selected.has(e[0]);
           const color = EXPERT_DOMAINS[e[0]]?.color ?? "#667085";
           const initials = e[0].split(" ").map((s) => s[0]).slice(0, 2).join("");
+          const isBest = e[0] === bestMatchName;
+          const depthPct = Math.round((stats.areaEntries / maxAreaEntries) * 100);
           return (
-            <div key={i} className={`expert-row${isSel ? " selected" : ""}${sent ? " sent" : ""}`}>
-              <div className="expert-row-main" onClick={() => !sent && toggle(e[0])} role="button" aria-pressed={isSel}>
+            <div key={i} className={`expert-row${isSel ? " selected" : ""}${isBest ? " best-match" : ""}`}>
+              <div className="expert-row-main" onClick={() => toggle(e[0])} role="button" aria-pressed={isSel}>
                 <div className={`expert-check-box${isSel ? " checked" : ""}`}>
                   {isSel && <span>✓</span>}
                 </div>
                 <div className="expert-avatar-sm" style={{ background: color }}>{initials}</div>
                 <div className="expert-row-info">
-                  <div className="expert-row-name">{e[0]}</div>
-                  <div className="expert-row-role">{e[1]} · {e[2]}</div>
+                  <div className="expert-row-name">
+                    {e[0]}
+                    {isBest && <span className="best-match-badge">Best match</span>}
+                  </div>
+                  <div className="expert-row-role">{e[1]}</div>
+                  <div className="expert-depth-row">
+                    <div className="expert-depth-bar-track">
+                      <div className="expert-depth-bar-fill" style={{ width: `${depthPct}%` }} />
+                    </div>
+                    <span className="expert-depth-label">
+                      {stats.areaEntries > 0
+                        ? `${stats.areaEntries} contribution${stats.areaEntries !== 1 ? "s" : ""} in this area`
+                        : stats.totalEntries > 0
+                          ? `${stats.totalEntries} total contribution${stats.totalEntries !== 1 ? "s" : ""}`
+                          : "No contributions yet"}
+                      {stats.daysSince !== null && stats.daysSince <= 30 && (
+                        <span className="expert-recency"> · active {stats.daysSince === 0 ? "today" : `${stats.daysSince}d ago`}</span>
+                      )}
+                    </span>
+                  </div>
                 </div>
                 <div className="expert-row-tags">
                   <span className="tag green">{e[3]}</span>
@@ -1543,7 +2393,6 @@ function ExpertSelector({
                   <textarea
                     className="expert-question"
                     value={questions[e[0]]}
-                    disabled={sent}
                     onChange={(ev) => setQuestions({ ...questions, [e[0]]: ev.target.value })}
                   />
                 </div>
@@ -1554,18 +2403,16 @@ function ExpertSelector({
       </div>
       <div className="expert-send-bar">
         <span className="muted" style={{ fontSize: 13 }}>
-          {selected.size} of {f.experts.length} expert{f.experts.length === 1 ? "" : "s"} selected
+          {selected.size} of {sortedExperts.length} expert{sortedExperts.length === 1 ? "" : "s"} selected
         </span>
         <button
           className="action-btn"
           onClick={submit}
-          disabled={selected.size === 0 || sent}
+          disabled={selected.size === 0}
         >
-          {sent
-            ? "✓ Tickets sent"
-            : selected.size === 0
-              ? "Select at least one expert"
-              : `Send tickets to ${selected.size} expert${selected.size === 1 ? "" : "s"}`}
+          {selected.size === 0
+            ? "Select at least one expert"
+            : `Send tickets to ${selected.size} expert${selected.size === 1 ? "" : "s"}`}
         </button>
       </div>
     </>

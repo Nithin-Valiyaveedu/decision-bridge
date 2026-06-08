@@ -255,8 +255,22 @@
   padding: 6px 12px; border-radius: 8px; border: 1px solid transparent;
   transition: all .15s;
 }
-.db-root .app-nav nav a:hover { color: var(--t2); background: var(--card-2); }
-.db-root .app-nav nav a.active { background: var(--green-d); color: var(--green); border-color: rgba(0,155,58,0.2); font-weight: 600; }
+.db-root .app-nav nav a:hover { color: var(--green-2); background: #fff; border-color: rgba(0,155,58,0.15); }
+.db-root .app-nav nav a.active { background: var(--green); color: #fff; border-color: var(--green); font-weight: 600; }
+.db-root .app-nav nav a.active:hover { background: var(--green-2); border-color: var(--green-2); color: #fff; }
+.db-root .nav-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.db-root .role-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+  font-family: var(--fb);
+}
+.db-root .role-badge::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.7;
+}
+.db-root .role-badge.role-admin   { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+.db-root .role-badge.role-expert  { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
+.db-root .role-badge.role-pm      { background: var(--green-d); color: var(--green-2); border: 1px solid rgba(0,155,58,0.25); }
 .db-root .sign-out-btn {
   background: var(--card-2); color: var(--t2);
   border: 1px solid var(--bd); padding: 6px 14px;
@@ -267,7 +281,7 @@
 
 /* ── Views ─────────────────────────────────────────── */
 .db-root .view { min-height: 0; overflow: auto; background: var(--bg); }
-.db-root .pm-view { display: grid; grid-template-rows: 1fr auto; min-height: 0; overflow: hidden; }
+.db-root .pm-view { display: grid; grid-template-rows: auto 1fr auto; min-height: 0; overflow: hidden; }
 .db-root .single-layout { padding: 24px; }
 .db-root .split-layout { display: grid; grid-template-columns: 1fr 310px; gap: 16px; padding: 24px; }
 .db-root .panel, .db-root .side-info {
@@ -356,7 +370,11 @@
 .db-root .member-chip { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--green-d); color: var(--green-2); font-weight: 600; }
 .db-root .project-select { flex: 1; min-width: 0; }
 
-/* ── Connector cards (sources tab) ─────────────────── */
+/* ── Sources divider ─────────────────────────────── */
+.db-root .sources-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 16px; color: var(--t3); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.db-root .sources-divider::before, .db-root .sources-divider::after { content: ""; flex: 1; height: 1px; background: var(--bd); }
+
+/* ── Connector cards ─────────────────────────────── */
 .db-root .connector-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
 .db-root .connector-card { border: 1.5px solid var(--bd); border-radius: 14px; padding: 16px; background: var(--card-2); transition: border-color .15s; }
 .db-root .connector-card.connected { border-color: rgba(0,155,58,0.3); background: var(--green-d); }
@@ -364,6 +382,12 @@
 .db-root .connector-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-size: 15px; font-weight: 800; color: #fff; flex-shrink: 0; }
 .db-root .connector-info { flex: 1; min-width: 0; }
 .db-root .connector-info strong { display: block; font-size: 13.5px; color: var(--t1); font-weight: 700; }
+.db-root .meeting-platform-select { font-size: 11.5px; color: var(--t3); background: none; border: none; padding: 0; margin-top: 2px; cursor: pointer; font-family: var(--fb); outline: none; }
+.db-root .mcp-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; background: var(--blue-d); color: var(--blue); border: 1px solid rgba(0,48,135,.18); border-radius: 20px; padding: 2px 7px; margin-top: 3px; }
+.db-root .mcp-config-hint { font-size: 11.5px; color: var(--t4); margin-top: 10px; line-height: 1.4; }
+.db-root .connector-edit-btn { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--t4); background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.db-root .connector-edit-btn:hover { color: var(--t2); background: var(--card-2); }
+.db-root .connector-content-edit { width: 100%; margin-top: 10px; min-height: 90px; font-size: 11.5px; font-family: var(--fm); color: var(--t2); background: var(--bg); border: 1px solid var(--bd); border-radius: 8px; padding: 8px 10px; resize: vertical; line-height: 1.5; box-sizing: border-box; }
 .db-root .connector-info span { display: block; font-size: 11.5px; color: var(--t3); margin-top: 2px; }
 .db-root .connector-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .db-root .connector-dot.connected { background: var(--green); box-shadow: 0 0 0 3px rgba(0,155,58,0.2); }
@@ -380,7 +404,7 @@
 .db-root .file-text { color: var(--t3); font-size: 11px; margin-top: 6px; }
 
 /* ── Chat area ─────────────────────────────────────── */
-.db-root .chat-area { overflow-y: auto; padding: 24px 28px; scroll-behavior: smooth; background: var(--bg); }
+.db-root .chat-area { overflow-y: auto; padding: 24px 28px 16px; scroll-behavior: smooth; background: var(--bg); min-height: 0; }
 .db-root .chat-area::-webkit-scrollbar { width: 4px; }
 .db-root .chat-area::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }
 .db-root .message { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; animation: ci-fadeUp .22s ease both; }
@@ -393,10 +417,48 @@
 .db-root .bubble p:last-child { margin-bottom: 0; }
 
 /* ── Composer ──────────────────────────────────────── */
-.db-root .composer { border-top: 1px solid var(--bd); padding: 14px 18px 16px; background: var(--surface); }
-.db-root .meta-row { display: grid; grid-template-columns: 1fr 150px auto; gap: 10px; margin-bottom: 8px; }
-.db-root .input-row { display: grid; grid-template-columns: 1fr 96px; gap: 10px; margin-top: 8px; }
-.db-root .question-input { min-height: 50px; max-height: 120px; resize: vertical; line-height: 1.5; }
+.db-root .composer {
+  border-top: 1px solid var(--bd);
+  padding: 16px 20px 20px;
+  background: var(--surface);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.045);
+}
+.db-root .meta-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.db-root .meta-row select, .db-root .meta-row input { max-width: 200px; font-size: 12px; padding: 5px 8px; }
+.db-root .input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  background: var(--bg);
+  border: 1.5px solid var(--bd);
+  border-radius: 14px;
+  padding: 10px 10px 10px 14px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.db-root .input-row:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(0,155,58,0.08);
+}
+.db-root .question-input {
+  min-height: 42px;
+  max-height: 140px;
+  resize: none;
+  line-height: 1.6;
+  border: none;
+  background: transparent;
+  padding: 2px 0;
+  font-size: 13.5px;
+  color: var(--t1);
+  box-shadow: none;
+}
+.db-root .question-input:focus { outline: none; box-shadow: none; }
+.db-root .input-row button {
+  align-self: flex-end;
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
 
 /* ── Action row / Block / Two-col ──────────────────── */
 .db-root .action-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
@@ -446,8 +508,17 @@
 .db-root .expert-check-box.checked { background: var(--green); border-color: var(--green); }
 .db-root .expert-avatar-sm { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 800; color: #fff; flex-shrink: 0; letter-spacing: 0.02em; }
 .db-root .expert-row-info { flex: 1; min-width: 0; }
-.db-root .expert-row-name { font-size: 13.5px; font-weight: 700; color: var(--t1); }
+.db-root .expert-row-name { font-size: 13.5px; font-weight: 700; color: var(--t1); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .db-root .expert-row-role { font-size: 12px; color: var(--t3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db-root .expert-row.best-match { border-color: rgba(0,155,58,.35); }
+.db-root .best-match-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; background: var(--green); color: #fff; border-radius: 20px; padding: 2px 8px; flex-shrink: 0; }
+.db-root .expert-selector-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
+.db-root .expert-depth-row { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.db-root .expert-depth-bar-track { width: 60px; height: 4px; background: var(--bd); border-radius: 99px; flex-shrink: 0; }
+.db-root .expert-depth-bar-fill { height: 100%; background: var(--green); border-radius: 99px; transition: width .3s; min-width: 4px; }
+.db-root .expert-row.selected .expert-depth-bar-track { background: rgba(0,155,58,.2); }
+.db-root .expert-depth-label { font-size: 11px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db-root .expert-recency { color: var(--green-2); font-weight: 600; }
 .db-root .expert-row-tags { display: flex; gap: 6px; flex-shrink: 0; }
 .db-root .expert-row-question { padding: 10px 16px 14px; border-top: 1px solid rgba(0,155,58,0.18); }
 .db-root .expert-row-question label { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--green-2); margin-bottom: 7px; }
@@ -560,6 +631,9 @@
 .db-root .ticket-pill.open { background: var(--amber-d); color: #92400E;  border: 1px solid rgba(217,119,6,0.25); }
 .db-root .ticket-pill.done { background: var(--green-d); color: var(--green-2); border: 1px solid rgba(0,155,58,0.25); }
 .db-root .ticket-q { margin: 8px 0; font-size: 13px; color: var(--t2); }
+.db-root .ticket-answer-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+.db-root .ticket-confidence-select { padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--bd); background: var(--surface); color: var(--t1); font: 12px var(--fb); cursor: pointer; }
+.db-root .ticket-answer-row button { flex: 1; min-width: 180px; }
 
 /* ── PM ticket banner ──────────────────────────────── */
 .db-root .ticket-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 16px; padding: 12px 16px; background: var(--green-d); border: 1px solid rgba(0,155,58,0.2); border-radius: 12px; }
@@ -611,6 +685,170 @@
 .db-root .expertise-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 52px; }
 .db-root .stat-num { font-family: var(--fm); font-size: 18px; font-weight: 500; color: var(--t1); line-height: 1; }
 .db-root .stat-label { font-size: 9px; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; text-align: center; }
+
+/* ── Connections panel ───────────────────────────── */
+.db-root .connections-panel { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.db-root .connections-header h2 { margin: 0 0 4px; }
+.db-root .connections-list { display: flex; flex-direction: column; gap: 12px; }
+.db-root .conn-card { border: 1.5px solid var(--bd); border-radius: 14px; background: var(--card); overflow: hidden; transition: border-color .15s; }
+.db-root .conn-card.connected { border-color: rgba(0,155,58,.3); background: var(--green-d); }
+.db-root .conn-card-main { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
+.db-root .conn-icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 16px; font-weight: 800; color: #fff; flex-shrink: 0; }
+.db-root .conn-info { flex: 1; min-width: 0; }
+.db-root .conn-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.db-root .conn-name-row strong { font-size: 14px; color: var(--t1); }
+.db-root .conn-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(0,155,58,.2); flex-shrink: 0; }
+.db-root .conn-desc { font-size: 12.5px; color: var(--t3); margin: 0; line-height: 1.4; }
+.db-root .conn-account { font-size: 11.5px; color: var(--green-2); font-weight: 600; margin-top: 3px; display: block; }
+.db-root .conn-actions { flex-shrink: 0; }
+.db-root .conn-btn { font-size: 12.5px; font-weight: 600; padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; font-family: var(--fb); transition: all .15s; }
+.db-root .conn-btn.connect { background: var(--green); color: #fff; }
+.db-root .conn-btn.connect:hover { background: var(--green-2); }
+.db-root .conn-btn.disconnect { background: none; border: 1.5px solid var(--bd2); color: var(--t3); }
+.db-root .conn-btn.disconnect:hover { border-color: var(--rose); color: var(--rose); }
+.db-root .conn-mcp-note { font-size: 11.5px; color: var(--t4); font-style: italic; white-space: nowrap; }
+.db-root .conn-form { padding: 12px 18px 16px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--bd); }
+.db-root .conn-field label { display: block; font-size: 12px; font-weight: 600; color: var(--t2); margin-bottom: 4px; }
+.db-root .conn-error { font-size: 12px; color: var(--rose); margin: 0; }
+.db-root .tab-badge.connected { background: var(--green); }
+
+/* ── Tickets sent confirmation ───────────────────── */
+.db-root .tickets-sent-confirm { display: flex; align-items: center; gap: 12px; background: var(--green-d); border: 1px solid rgba(0,155,58,.25); border-radius: 10px; padding: 12px 16px; }
+.db-root .tickets-sent-icon { width: 28px; height: 28px; border-radius: 50%; background: var(--green); color: #fff; font-size: 14px; font-weight: 700; display: grid; place-items: center; flex-shrink: 0; }
+
+/* ── PM tabs ─────────────────────────────────────── */
+.db-root .pm-tabs { display: flex; gap: 4px; padding: 12px 20px 0; border-bottom: 1px solid var(--bd); background: var(--green); flex-shrink: 0; }
+.db-root .pm-tab { padding: 8px 16px; border: none; background: none; font: 600 13px var(--fb); color: rgba(255,255,255,0.7); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s; display: flex; align-items: center; gap: 6px; }
+.db-root .pm-tab:hover { color: #fff; }
+.db-root .pm-tab.active { color: #fff; border-bottom-color: #fff; }
+
+/* ── Decision log ─────────────────────────────────── */
+.db-root .decision-log { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.db-root .log-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.db-root .log-stats { display: flex; gap: 16px; flex-shrink: 0; }
+.db-root .log-stat { text-align: center; background: var(--card-2); border: 1px solid var(--bd); border-radius: 10px; padding: 10px 16px; }
+.db-root .log-stat strong { display: block; font-size: 22px; font-weight: 800; color: var(--t1); line-height: 1; }
+.db-root .log-stat span { font-size: 11px; color: var(--t3); margin-top: 3px; display: block; }
+
+/* ── Timeline ─────────────────────────────────────── */
+.db-root .timeline { display: flex; flex-direction: column; }
+.db-root .tl-event { display: flex; gap: 14px; }
+.db-root .tl-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 20px; padding-top: 3px; }
+.db-root .tl-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.db-root .tl-dot.green { background: var(--green); box-shadow: 0 0 0 3px rgba(0,155,58,.18); }
+.db-root .tl-dot.blue { background: #1746a2; box-shadow: 0 0 0 3px rgba(23,70,162,.15); }
+.db-root .tl-dot.orange { background: #c27303; box-shadow: 0 0 0 3px rgba(194,115,3,.15); }
+.db-root .tl-line { flex: 1; width: 2px; background: var(--bd); margin: 4px 0; min-height: 16px; }
+.db-root .tl-body { flex: 1; padding-bottom: 20px; }
+.db-root .tl-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.db-root .tl-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.db-root .tl-tag.green { background: var(--green-d); color: var(--green-2); }
+.db-root .tl-tag.blue { background: #eef2fb; color: #1746a2; }
+.db-root .tl-tag.orange { background: #fff7ed; color: #c27303; }
+.db-root .tl-area { font-size: 11.5px; font-weight: 600; color: var(--t2); background: var(--card-2); border: 1px solid var(--bd); border-radius: 6px; padding: 2px 7px; }
+.db-root .tl-time { font-size: 11px; color: var(--t4); margin-left: auto; }
+.db-root .tl-text { font-size: 13px; color: var(--t2); line-height: 1.5; margin: 0 0 4px; }
+.db-root .tl-answer { color: var(--t1); background: var(--green-d); border-radius: 6px; padding: 6px 10px; border-left: 3px solid var(--green); }
+.db-root .tl-meta { font-size: 11px; color: var(--t4); margin-top: 2px; }
+.db-root .tl-dot.red { background: #e11d48; box-shadow: 0 0 0 3px rgba(225,29,72,.15); }
+.db-root .tl-tag.red { background: #fff1f2; color: #be123c; }
+.db-root .log-stat.conflict { background: #fff1f2; border-color: #fecdd3; }
+.db-root .log-stat.conflict strong { color: #be123c; }
+.db-root .tl-conflict-body { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.db-root .tl-conflict-side { flex: 1; border-radius: 8px; padding: 8px 12px; font-size: 12px; }
+.db-root .tl-conflict-side strong { display: block; font-size: 12.5px; margin-bottom: 2px; }
+.db-root .tl-conflict-side span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.db-root .tl-conflict-side.approve { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.db-root .tl-conflict-side.approve span { color: #009b3a; }
+.db-root .tl-conflict-side.reject  { background: #fff1f2; border: 1px solid #fecdd3; }
+.db-root .tl-conflict-side.reject  span { color: #e11d48; }
+.db-root .tl-conflict-vs { font-size: 10px; font-weight: 700; color: var(--t4); flex-shrink: 0; }
+
+/* ── Conflict banner in decision brief ──────────────── */
+.db-root .conflict-banner {
+  border: 1.5px solid #fde68a; background: #fffbeb; border-radius: 14px; padding: 18px 20px; margin: 8px 0 14px;
+  animation: ci-fadeUp .22s ease both;
+}
+.db-root .conflict-banner-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.db-root .conflict-icon { font-size: 16px; }
+.db-root .conflict-banner-head strong { font-size: 14px; color: #92400e; }
+.db-root .conflict-sub { font-size: 12.5px; color: #a16207; flex: 1; }
+.db-root .conflict-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.db-root .conflict-side { border-radius: 10px; padding: 12px 14px; font-size: 12.5px; line-height: 1.5; }
+.db-root .conflict-side strong { display: block; font-size: 13px; margin-bottom: 4px; color: var(--t1); }
+.db-root .conflict-side p { color: var(--t2); margin: 0; }
+.db-root .conflict-stance { display: block; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+.db-root .conflict-side.approve { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.db-root .conflict-side.approve .conflict-stance { color: #009b3a; }
+.db-root .conflict-side.reject  { background: #fff1f2; border: 1px solid #fecdd3; }
+.db-root .conflict-side.reject  .conflict-stance { color: #e11d48; }
+
+/* ── Admin people list with emails ─────────────────── */
+.db-root .check-person-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1.5px solid var(--bd); border-radius: 10px; background: var(--card); transition: border-color .15s; }
+.db-root .check-person-row:has(input:checked) { border-color: rgba(0,155,58,.4); background: var(--green-d); }
+.db-root .person-check-label { display: flex; align-items: center; gap: 10px; flex: 1; cursor: pointer; min-width: 0; }
+.db-root .person-check-label input[type="checkbox"] { flex-shrink: 0; width: 15px; height: 15px; accent-color: var(--green); cursor: pointer; }
+.db-root .person-check-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.db-root .person-check-info strong { font-size: 13px; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db-root .person-check-info span { font-size: 11px; color: var(--t3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-root .person-email-col { flex-shrink: 0; display: flex; align-items: center; }
+.db-root .person-email-badge { font-size: 11px; color: var(--t3); background: var(--card-2); border: 1px solid var(--bd); border-radius: 20px; padding: 3px 10px; cursor: pointer; transition: all .15s; white-space: nowrap; font-family: monospace; }
+.db-root .person-email-badge:hover { border-color: var(--green); color: var(--t2); }
+.db-root .person-email-badge.demo-override { background: #fff7ed; border-color: #f59e0b; color: #b45309; font-weight: 600; }
+.db-root .person-email-edit { display: flex; align-items: center; gap: 6px; }
+.db-root .person-email-edit input { font: 12px var(--fb); color: var(--t1); background: var(--bg); border: 1.5px solid var(--green); border-radius: 8px; padding: 4px 8px; outline: none; width: 190px; }
+.db-root .person-email-save { font: 600 11px var(--fb); background: var(--green); color: #fff; border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+.db-root .person-email-cancel { font: 600 13px var(--fb); background: none; border: none; color: var(--t4); cursor: pointer; padding: 2px 4px; line-height: 1; }
+
+/* ── Gmail capture card ─────────────────────────────── */
+.db-root .gmail-card { grid-column: 1 / -1; }
+.db-root .gmail-expert-email { font-size: 11px; color: var(--t3); font-family: monospace; }
+.db-root .gmail-error { font-size: 12px; color: var(--rose); margin: 8px 0 0; }
+.db-root .gmail-messages { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; border-top: 1px solid var(--bd); padding-top: 12px; }
+.db-root .gmail-found-label { font-size: 11.5px; color: var(--t3); margin: 0 0 4px; font-weight: 600; }
+.db-root .gmail-msg-card { border: 1.5px solid var(--bd); border-radius: 10px; padding: 10px 12px; background: var(--card-2); }
+.db-root .gmail-msg-card:hover { border-color: var(--green); }
+.db-root .gmail-msg-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.db-root .gmail-msg-subject { font-size: 13px; font-weight: 700; color: var(--t1); }
+.db-root .gmail-msg-date { font-size: 11px; color: var(--t4); flex-shrink: 0; }
+.db-root .gmail-msg-from { font-size: 11px; color: var(--t3); display: block; margin-bottom: 4px; }
+.db-root .gmail-msg-snippet { font-size: 12px; color: var(--t3); margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ── MCP endpoint row (inside conn-card when disconnected) ─ */
+.db-root .conn-endpoint-row { display: flex; align-items: center; gap: 10px; padding: 0 18px 14px; border-top: 1px solid var(--bd); padding-top: 12px; }
+.db-root .conn-endpoint-label { font-size: 11px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.db-root .conn-endpoint-input { flex: 1; font: 12px var(--fb); color: var(--t2); background: var(--card-2); border: 1.5px solid var(--bd); border-radius: 8px; padding: 7px 10px; outline: none; }
+.db-root .conn-endpoint-input:focus { border-color: var(--green); }
+.db-root .conn-mcp-hint { font-size: 11.5px; color: var(--t4); font-style: italic; display: block; margin-top: 2px; }
+.db-root .conn-gmail-token-row { display: flex; align-items: center; gap: 10px; padding-top: 8px; border-top: 1px solid var(--bd); margin-top: 4px; }
+.db-root .conn-token-hint { font-size: 11px; font-weight: 600; color: var(--green-2); white-space: nowrap; text-decoration: none; flex-shrink: 0; }
+.db-root .conn-token-hint:hover { text-decoration: underline; }
+.db-root .meeting-transcript-status { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.db-root .meeting-transcript-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(0,155,58,.2); flex-shrink: 0; }
+.db-root .meeting-transcript-label { font-size: 11px; font-weight: 600; color: var(--green-2); white-space: nowrap; }
+
+/* ── LLM configuration section ──────────────────────── */
+.db-root .llm-section { display: flex; flex-direction: column; gap: 14px; }
+.db-root .llm-section-header h3 { margin: 0 0 4px; font-size: 15px; }
+.db-root .llm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.db-root .llm-card { text-align: left; display: flex; flex-direction: column; gap: 10px; background: var(--card); border: 1.5px solid var(--bd); border-radius: 14px; padding: 14px 16px; cursor: pointer; transition: border-color .15s, background .15s; font-family: var(--fb); }
+.db-root .llm-card:hover { border-color: var(--bd2); }
+.db-root .llm-card.active { border-color: var(--green); background: var(--green-d); }
+.db-root .llm-card-top { display: flex; flex-direction: column; gap: 6px; }
+.db-root .llm-name-row { display: flex; align-items: center; gap: 8px; }
+.db-root .llm-name { font-size: 13.5px; font-weight: 700; color: var(--t1); }
+.db-root .llm-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #fff; border-radius: 20px; padding: 2px 7px; }
+.db-root .llm-desc { font-size: 12px; color: var(--t3); margin: 0; line-height: 1.4; }
+.db-root .llm-residency { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 5px 8px; border-radius: 8px; }
+.db-root .llm-residency-green { background: var(--green-d); color: var(--green-2); }
+.db-root .llm-residency-orange { background: #fff7ed; color: #c27303; }
+.db-root .llm-residency-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.db-root .llm-fields { display: flex; flex-direction: column; border-top: 1px solid rgba(0,155,58,.2); padding-top: 10px; }
+.db-root .llm-fields label { font-size: 11.5px; font-weight: 600; color: var(--t2); margin-bottom: 4px; }
+.db-root .llm-fields input { font: 12px var(--fb); color: var(--t2); background: var(--bg); border: 1.5px solid var(--bd); border-radius: 8px; padding: 7px 10px; outline: none; }
+.db-root .llm-fields input:focus { border-color: var(--green); }
+.db-root .llm-note { font-size: 12px; color: var(--t3); background: var(--card-2); border: 1px solid var(--bd); border-radius: 10px; padding: 10px 14px; margin: 0; line-height: 1.5; }
+.db-root .llm-note code { font-size: 11px; background: var(--bd); padding: 1px 5px; border-radius: 4px; color: var(--t2); }
 
 /* ── Responsive ────────────────────────────────────── */
 @media (max-width: 900px) {
