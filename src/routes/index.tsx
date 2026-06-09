@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getRole } from "@/lib/local-auth";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -48,8 +48,8 @@ function ScoreMeter({ score }: { score: number }) {
         transform="rotate(-90 100 100)"
         style={{ filter: "blur(6px)", transition: "stroke-dashoffset 30ms linear" }}
       />
-      <text x="100" y="92" textAnchor="middle" className="lp-score-num">{score}%</text>
-      <text x="100" y="113" textAnchor="middle" className="lp-score-sub-text">Decision Readiness</text>
+      <text x="100" y="95" textAnchor="middle" className="lp-score-num">{score}%</text>
+      <text x="100" y="114" textAnchor="middle" className="lp-score-sub-text">READINESS</text>
     </svg>
   );
 }
@@ -78,15 +78,145 @@ const HERO_LINE2 = [
   { text: "decisions.", d: 0.48 },
 ];
 const HERO_LINE3 = [
-  { text: "Zero", d: 0.65 },
-  { text: "guesswork.", d: 0.78 },
+  { text: "Easy", d: 0.65 },
+  { text: "translation.", d: 0.78 },
 ];
+
+// ─── Flow animation (pure React/CSS, cycles through 4 steps) ─────────────────
+
+const FLOW_SCENES = [
+  {
+    step: "01", heading: "Capture expert knowledge",
+    sub: "AI extracts structured findings from your existing tools",
+    content: (
+      <div className="fa-chips">
+        {[{l:"G",bg:"#ea4335",n:"Gmail"},{l:"J",bg:"#0052cc",n:"Jira"},{l:"S",bg:"#611f69",n:"Slack"},{l:"T",bg:"#4f52b2",n:"Teams"}].map((c,i)=>(
+          <div key={c.n} className="fa-chip" style={{animationDelay:`${i*0.15}s`}}>
+            <span className="fa-chip-icon" style={{background:c.bg}}>{c.l}</span>
+            <span className="fa-chip-name">{c.n}</span>
+          </div>
+        ))}
+        <div className="fa-arrow">→</div>
+        <div className="fa-kb">📋 Knowledge base</div>
+      </div>
+    ),
+  },
+  {
+    step: "02", heading: "Detect expert conflicts automatically",
+    sub: "Surfaces disagreements before the PM decides",
+    content: (
+      <div className="fa-conflict">
+        <div className="fa-expert fa-approve">
+          <div className="fa-expert-tag green">✓ Supports</div>
+          <div className="fa-expert-name">Dr. Müller</div>
+          <div className="fa-expert-note green">Conditional approval</div>
+        </div>
+        <div className="fa-badge">
+          <div className="fa-badge-icon">⚠</div>
+          <div className="fa-badge-label">CONFLICT</div>
+        </div>
+        <div className="fa-expert fa-reject">
+          <div className="fa-expert-tag red">✗ Against</div>
+          <div className="fa-expert-name">T. Richter</div>
+          <div className="fa-expert-note red">Hold — HTOL outstanding</div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    step: "03", heading: "Generate a structured decision brief",
+    sub: "Readiness score, evidence table, risk assessment",
+    content: (
+      <div className="fa-brief">
+        <div className="fa-ring">
+          <svg viewBox="0 0 120 120" width="120" height="120">
+            <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8"/>
+            <circle cx="60" cy="60" r="48" fill="none" stroke="#009b3a" strokeWidth="8"
+              strokeLinecap="round" strokeDasharray="301.59" strokeDashoffset="84.45"
+              transform="rotate(-90 60 60)" className="fa-arc"/>
+            <text x="60" y="56" textAnchor="middle" style={{fontSize:22,fontWeight:700,fill:"#00cc4e",fontFamily:"Chakra Petch,monospace"}}>72%</text>
+            <text x="60" y="70" textAnchor="middle" style={{fontSize:8,fill:"#6080a0",fontFamily:"DM Sans,sans-serif",textTransform:"uppercase",letterSpacing:"0.08em"}}>READINESS</text>
+          </svg>
+        </div>
+        <div className="fa-rows">
+          {[{d:"Evidence depth","v":"24/30",c:"green"},{d:"Expert agreement","v":"18/40",c:"amber"},{d:"Knowledge recency","v":"30/30",c:"green"}].map((r,i)=>(
+            <div key={r.d} className="fa-row" style={{animationDelay:`${0.2+i*0.15}s`}}>
+              <span className={`fa-dot ${r.c}`}/>
+              <span className="fa-row-label">{r.d}</span>
+              <span className="fa-row-val">{r.v}</span>
+            </div>
+          ))}
+          <div className="fa-conflict-note" style={{animationDelay:"0.65s"}}>⚠ Conflict detected — agreement score reduced</div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    step: "04", heading: "PM approves or rejects",
+    sub: "Decision logged with full audit trail, experts notified",
+    content: (
+      <div className="fa-verdict">
+        <div className="fa-btns">
+          <div className="fa-agree">✓ Agree — Proceed</div>
+          <div className="fa-disagree">✗ Disagree — Hold</div>
+        </div>
+        <div className="fa-approved">✓ Decision approved · 3 experts notified</div>
+        <div className="fa-timeline">
+          {[{c:"green",l:"Knowledge captured"},{c:"amber",l:"⚠ Conflict detected"},{c:"green",l:"✓ PM approved"}].map((d,i)=>(
+            <div key={d.l} className="fa-tl-row" style={{animationDelay:`${0.3+i*0.15}s`}}>
+              <span className={`fa-dot ${d.c}`}/>{d.l}
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+];
+
+function FlowAnimation() {
+  const [scene, setScene] = useState(0);
+  const [exiting, setExiting] = useState(false);
+  const sceneRef = useRef(0);
+
+  const goTo = (next: number) => {
+    if (exiting) return;
+    setExiting(true);
+    setTimeout(() => {
+      sceneRef.current = next;
+      setScene(next);
+      setExiting(false);
+    }, 150);
+  };
+
+  useEffect(() => {
+    const iv = setInterval(() => goTo((sceneRef.current + 1) % 4), 1500);
+    return () => clearInterval(iv);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const s = FLOW_SCENES[scene];
+  return (
+    <div className="fa-root">
+      <div className="fa-bg" />
+      <div className="fa-step-ghost">{s.step}</div>
+      <div className={`fa-inner${exiting ? " fa-exiting" : ""}`} key={scene}>
+        <div className="fa-step-label">Step {s.step}</div>
+        <div className="fa-heading">{s.heading}</div>
+        <div className="fa-sub">{s.sub}</div>
+        <div className="fa-content">{s.content}</div>
+      </div>
+      <div className="fa-dots">
+        {FLOW_SCENES.map((_, i) => (
+          <button key={i} className={`fa-dot-btn${i === scene ? " active" : ""}`} onClick={() => goTo(i)} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ─── Landing page ─────────────────────────────────────────────────────────────
 
 function LandingPage() {
   const [score, setScore] = useState(0);
-
   useEffect(() => {
     const timer = setTimeout(() => {
       let n = 0;
@@ -119,50 +249,62 @@ function LandingPage() {
           <div className="lp-dot-grid" aria-hidden="true" />
           <div className="lp-hero-glow" aria-hidden="true" />
 
-          <div className="lp-hero-inner">
-            <span className="lp-eyebrow">
-              <span className="lp-eyebrow-dot" />
-              Built for Infineon · Hackathon 2025
-            </span>
+          <div className="lp-hero-split">
 
-            <h1 className="lp-h1">
-              <span className="lp-h1-line">
-                {HERO_LINE1.map((w, i) => (
-                  <span key={i} className="lp-word" style={{ animationDelay: `${w.d}s` }}>{w.text} </span>
-                ))}
+            {/* Left: headline + CTA */}
+            <div className="lp-hero-left">
+              <span className="lp-eyebrow">
+                <span className="lp-eyebrow-dot" />
+                Built for Infineon · Hackathon 2025
               </span>
-              <span className="lp-h1-line">
-                {HERO_LINE2.map((w, i) => (
-                  <span key={i} className="lp-word" style={{ animationDelay: `${w.d}s` }}>{w.text} </span>
-                ))}
-              </span>
-              <span className="lp-h1-line lp-h1-accent">
-                {HERO_LINE3.map((w, i) => (
-                  <span key={i} className="lp-word lp-word-accent" style={{ animationDelay: `${w.d}s` }}>{w.text} </span>
-                ))}
-              </span>
-            </h1>
 
-            <p className="lp-tagline" style={{ animationDelay: "1s" }}>
-              AI-powered decision templates made easy with connectors<br className="lp-br" />
-              from Gmail, Jira, Slack, Teams and your own workspaces.
-            </p>
+              <h1 className="lp-h1">
+                <span className="lp-h1-line">
+                  {HERO_LINE1.map((w, i) => (
+                    <span key={i} className="lp-word" style={{ animationDelay: `${w.d}s` }}>{w.text} </span>
+                  ))}
+                </span>
+                <span className="lp-h1-line">
+                  {HERO_LINE2.map((w, i) => (
+                    <span key={i} className="lp-word" style={{ animationDelay: `${w.d}s` }}>{w.text} </span>
+                  ))}
+                </span>
+                <span className="lp-h1-line lp-h1-accent">
+                  {HERO_LINE3.map((w, i) => (
+                    <span key={i} className="lp-word lp-word-accent" style={{ animationDelay: `${w.d}s` }}>{w.text} </span>
+                  ))}
+                </span>
+              </h1>
 
-            <div className="lp-cta-row" style={{ animationDelay: "1.15s" }}>
-              <a href="/auth" className="lp-btn-primary">
-                Try now
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              </a>
-              <a href="#features" className="lp-btn-ghost">See how it works</a>
+              <p className="lp-tagline" style={{ animationDelay: "1s" }}>
+                AI-powered decision templates made easy with connectors
+                from Gmail, Jira, Slack, Teams and your own workspaces.
+              </p>
+
+              <div className="lp-cta-row" style={{ animationDelay: "1.15s" }}>
+                <a href="/auth" className="lp-btn-primary">
+                  Try now
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
+                <a href="#features" className="lp-btn-ghost">See how it works</a>
+              </div>
+
+              <div className="lp-hero-stats" style={{ animationDelay: "1.3s" }}>
+                <div className="lp-hs"><span className="lp-hs-n">5</span><span className="lp-hs-l">expert roles</span></div>
+                <div className="lp-hs-div" />
+                <div className="lp-hs"><span className="lp-hs-n">6</span><span className="lp-hs-l">workspace connectors</span></div>
+                <div className="lp-hs-div" />
+                <div className="lp-hs"><span className="lp-hs-n">100%</span><span className="lp-hs-l">auditable</span></div>
+              </div>
             </div>
 
-            <div className="lp-hero-stats" style={{ animationDelay: "1.3s" }}>
-              <div className="lp-hs"><span className="lp-hs-n">5</span><span className="lp-hs-l">expert roles</span></div>
-              <div className="lp-hs-div" />
-              <div className="lp-hs"><span className="lp-hs-n">6</span><span className="lp-hs-l">workspace connectors</span></div>
-              <div className="lp-hs-div" />
-              <div className="lp-hs"><span className="lp-hs-n">100%</span><span className="lp-hs-l">auditable</span></div>
+            {/* Right: animated flow player */}
+            <div className="lp-hero-right">
+              <div className="lp-hero-player">
+                <FlowAnimation />
+              </div>
             </div>
+
           </div>
         </section>
 
@@ -171,7 +313,7 @@ function LandingPage() {
           <div className="lp-strip-fade lp-strip-fade-l" aria-hidden="true" />
           <div className="lp-strip-fade lp-strip-fade-r" aria-hidden="true" />
           <div className="lp-strip-track">
-            {[...CONNECTORS, ...CONNECTORS].map((c, i) => (
+            {[...CONNECTORS, ...CONNECTORS, ...CONNECTORS].map((c, i) => (
               <div key={i} className="lp-chip">
                 <span className="lp-chip-icon" style={{ background: c.bg }}>{c.letter}</span>
                 <span className="lp-chip-name">{c.name}</span>
@@ -247,6 +389,7 @@ function LandingPage() {
           </div>
         </section>
 
+
         {/* ── Score section ────────────────────────────────────────── */}
         <section className="lp-score-section">
           <div className="lp-score-left">
@@ -266,6 +409,7 @@ function LandingPage() {
           <div className="lp-score-right">
             <div className="lp-score-card">
               <ScoreMeter score={score} />
+              <div className="lp-score-divider" />
               <div className="lp-score-rows">
                 <div className="lp-score-row">
                   <span className="lp-score-dot green" />
@@ -398,6 +542,38 @@ const CSS = `
       radial-gradient(ellipse 600px 500px at 75% 65%, rgba(0,155,58,0.06) 0%, transparent 55%);
   }
 
+  /* ── Hero split layout ─────────────────────────────────── */
+  .lp-hero-split {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+    max-width: 1200px;
+    width: 100%;
+    padding: 60px 40px;
+  }
+
+  .lp-hero-left {
+    text-align: left;
+  }
+
+  .lp-hero-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lp-hero-player {
+    width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #060b18;
+    border: 1px solid rgba(0,155,58,0.2);
+    box-shadow: 0 0 60px rgba(0,155,58,0.1), 0 24px 60px rgba(0,0,0,0.6);
+    aspect-ratio: 16 / 9;
+  }
+
   .lp-hero-inner {
     position: relative; z-index: 1;
     text-align: center;
@@ -430,12 +606,12 @@ const CSS = `
 
   .lp-h1 {
     font-family: 'Chakra Petch', sans-serif;
-    font-size: clamp(52px, 7.5vw, 88px);
+    font-size: clamp(36px, 4vw, 58px);
     font-weight: 700;
-    line-height: 1.04;
-    letter-spacing: -0.035em;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
     color: #eaf2ff;
-    margin: 0 0 28px;
+    margin: 0 0 24px;
   }
 
   .lp-h1-line { display: block; }
@@ -445,6 +621,7 @@ const CSS = `
   .lp-word {
     display: inline-block;
     opacity: 0;
+    margin-right: 0.22em;
     animation: lp-word-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
@@ -510,7 +687,7 @@ const CSS = `
   .lp-btn-xl  { padding: 17px 44px; font-size: 17px; border-radius: 12px; }
 
   .lp-hero-stats {
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: center; justify-content: flex-start;
     opacity: 0;
     animation: lp-up 0.6s ease forwards;
   }
@@ -544,15 +721,15 @@ const CSS = `
   .lp-strip-fade-r { right: 0; background: linear-gradient(to left, #0a0f1e, transparent); }
 
   .lp-strip-track {
-    display: flex; gap: 16px;
+    display: flex;
     width: max-content;
-    animation: lp-scroll 30s linear infinite;
+    animation: lp-scroll 28s linear infinite;
   }
   .lp-strip-track:hover { animation-play-state: paused; }
 
   @keyframes lp-scroll {
     from { transform: translateX(0); }
-    to   { transform: translateX(-50%); }
+    to   { transform: translateX(-33.333%); }
   }
 
   .lp-chip {
@@ -562,6 +739,7 @@ const CSS = `
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 40px;
     flex-shrink: 0;
+    margin-right: 16px;
     transition: border-color 0.15s;
   }
   .lp-chip:hover { border-color: rgba(0,155,58,0.3); }
@@ -692,10 +870,10 @@ const CSS = `
 
   /* ── Score section ──────────────────────────────────── */
   .lp-score-section {
-    max-width: 1140px; margin: 0 auto;
+    max-width: 1100px; margin: 0 auto;
     padding: 80px 40px 100px;
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 80px; align-items: center;
+    display: grid; grid-template-columns: 1fr auto;
+    gap: 72px; align-items: center;
   }
 
   .lp-body-text {
@@ -721,45 +899,51 @@ const CSS = `
   .lp-score-card {
     background: #0c1628;
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 20px; padding: 32px 28px;
-    width: 100%; max-width: 340px;
-    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    border-radius: 24px; padding: 36px 32px;
+    width: 100%; max-width: 400px;
+    box-shadow: 0 0 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,155,58,0.06);
   }
 
   .lp-score-svg {
-    width: 176px; height: 176px;
-    display: block; margin: 0 auto 24px;
+    width: 152px; height: 152px;
+    display: block; margin: 0 auto 8px;
   }
 
   .lp-score-num {
     font-family: 'Chakra Petch', sans-serif;
-    font-size: 42px; font-weight: 700;
+    font-size: 38px; font-weight: 700;
     fill: #009b3a;
   }
 
   .lp-score-sub-text {
-    font-size: 11.5px; fill: #3a5470;
+    font-size: 10px; fill: #3a5470;
     font-family: 'DM Sans', sans-serif;
-    text-transform: uppercase; letter-spacing: 0.08em;
+    text-transform: uppercase; letter-spacing: 0.1em;
   }
 
-  .lp-score-rows { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
-  .lp-score-row {
-    display: flex; align-items: center; gap: 9px;
-    font-size: 12.5px; color: #6080a0;
+  .lp-score-divider {
+    height: 1px; background: rgba(255,255,255,0.06);
+    margin: 20px 0;
   }
-  .lp-score-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .lp-score-dot.green { background: #009b3a; }
-  .lp-score-dot.amber { background: #f59e0b; }
+
+  .lp-score-rows { display: flex; flex-direction: column; gap: 13px; margin-bottom: 18px; }
+  .lp-score-row {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: #6080a0;
+  }
+  .lp-score-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .lp-score-dot.green { background: #009b3a; box-shadow: 0 0 6px rgba(0,155,58,0.6); }
+  .lp-score-dot.amber { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.6); }
   .lp-score-row-label { flex: 1; }
-  .lp-score-row-val { font-weight: 600; color: #8090a8; }
+  .lp-score-row-val { font-weight: 600; color: #8090a8; white-space: nowrap; }
 
   .lp-score-conflict {
-    display: flex; align-items: center; gap: 7px;
-    font-size: 11.5px; color: #d97706;
-    background: rgba(245,158,11,0.07);
-    border: 1px solid rgba(245,158,11,0.18);
-    border-radius: 8px; padding: 8px 12px;
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 12px; color: #d97706;
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.16);
+    border-radius: 10px; padding: 10px 14px;
+    line-height: 1.45;
   }
 
   /* ── Final CTA ──────────────────────────────────────── */
@@ -811,22 +995,204 @@ const CSS = `
   }
   .lp-footer-sep { color: #1e3450; }
 
+  /* ── Remotion player section ──────────────────────── */
+  .lp-remotion-section {
+    padding: 80px 40px;
+    text-align: center;
+    background: linear-gradient(180deg, transparent 0%, rgba(0,155,58,0.03) 50%, transparent 100%);
+  }
+
+  .lp-remotion-player {
+    max-width: 900px;
+    margin: 32px auto 0;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #060b18;
+    border: 1px solid rgba(0,155,58,0.18);
+    box-shadow: 0 0 60px rgba(0,155,58,0.08), 0 24px 80px rgba(0,0,0,0.6);
+    aspect-ratio: 16 / 9;
+  }
+
   /* ── Responsive ─────────────────────────────────────── */
   @media (max-width: 960px) {
-    .lp-nav { padding: 0 24px; }
+    .lp-nav { padding: 0 20px; }
+    .lp-hero-split { grid-template-columns: 1fr; gap: 32px; padding: 48px 24px 40px; }
+    .lp-hero-left { text-align: center; }
+    .lp-hero-stats { justify-content: center; }
+    .lp-cta-row { justify-content: center; }
+    .lp-eyebrow { margin-left: auto; margin-right: auto; }
     .lp-cards { grid-template-columns: 1fr; max-width: 520px; margin: 0 auto; }
-    .lp-score-section { grid-template-columns: 1fr; gap: 48px; text-align: center; }
+    .lp-score-section { grid-template-columns: 1fr; gap: 40px; text-align: center; padding: 60px 24px 80px; }
     .lp-h2-left { text-align: center; }
     .lp-score-checklist { align-items: center; }
     .lp-score-right { order: -1; }
-    .lp-hs { padding: 0 18px; }
-    .lp-features { padding: 72px 24px; }
+    .lp-hs { padding: 0 14px; }
+    .lp-features { padding: 64px 24px; }
+    .fa-conflict { flex-direction: column; gap: 10px; }
+    .fa-brief { flex-direction: column; align-items: center; }
+    .fa-ring { margin: 0 auto; }
   }
 
   @media (max-width: 600px) {
-    .lp-h1 { font-size: 44px; }
-    .lp-hero-inner { padding: 60px 20px 80px; }
+    .lp-h1 { font-size: 30px; }
     .lp-hs-div { display: none; }
-    .lp-hero-stats { gap: 16px; }
+    .lp-hero-stats { gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .fa-chips { gap: 6px; }
+    .fa-heading { font-size: 16px; }
+    .lp-score-section { padding: 48px 20px 60px; }
+    .lp-final-cta { padding: 72px 24px; }
+    .lp-features { padding: 48px 20px; }
+    .fa-root { padding: 22px 22px 16px; }
   }
+
+  /* ── FlowAnimation ──────────────────────────────────── */
+  .fa-root {
+    position: relative; width: 100%; height: 100%;
+    background: #0a0f1e; border-radius: 14px; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 28px 32px 20px; min-height: 340px;
+  }
+  .fa-bg {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(circle, rgba(0,155,58,0.16) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse 85% 80% at 50% 50%, black 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 85% 80% at 50% 50%, black 20%, transparent 75%);
+  }
+  .fa-step-ghost {
+    position: absolute; top: 12px; left: 24px;
+    font-family: 'Chakra Petch', monospace; font-size: 68px; font-weight: 700;
+    color: rgba(0,155,58,0.09); line-height: 1; pointer-events: none; user-select: none;
+    transition: opacity 0.25s;
+  }
+
+  /* Scene enter */
+  .fa-inner {
+    position: relative; z-index: 1;
+    animation: fa-enter 0.2s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes fa-enter {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  /* Scene exit */
+  .fa-inner.fa-exiting {
+    animation: fa-exit 0.12s ease-in forwards;
+  }
+  @keyframes fa-exit {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-8px); }
+  }
+
+  .fa-step-label {
+    font-family: 'Chakra Petch', monospace; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.18em; color: #009b3a; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .fa-heading {
+    font-family: 'Chakra Petch', monospace; font-size: 19px; font-weight: 700;
+    color: #eaf2ff; letter-spacing: -0.02em; line-height: 1.25; margin-bottom: 5px;
+  }
+  .fa-sub { font-size: 12.5px; color: #6080a0; margin-bottom: 18px; line-height: 1.5; }
+  .fa-content { position: relative; }
+
+  /* -- Scene 1: chips -- */
+  .fa-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .fa-chip {
+    display: flex; align-items: center; gap: 7px; padding: 5px 11px 5px 5px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 30px;
+    animation: fa-pop-up 0.3s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  .fa-chip-icon {
+    width: 24px; height: 24px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: #fff; font-family: 'Chakra Petch', monospace; flex-shrink: 0;
+  }
+  .fa-chip-name { font-size: 11.5px; font-weight: 500; color: #6080a0; }
+  .fa-arrow { font-size: 16px; color: #009b3a; text-shadow: 0 0 8px #009b3a; animation: fa-pop-up 0.3s 0.35s both; }
+  .fa-kb {
+    padding: 7px 12px; background: rgba(0,155,58,0.08); border: 1px solid rgba(0,155,58,0.25);
+    border-radius: 9px; font-size: 11.5px; font-weight: 600; color: #00cc4e;
+    font-family: 'Chakra Petch', monospace;
+    animation: fa-pop-up 0.3s 0.42s cubic-bezier(0.22,1,0.36,1) both;
+  }
+
+  /* -- Scene 2: conflict -- */
+  .fa-conflict { display: flex; align-items: center; gap: 12px; }
+  .fa-expert { flex: 1; padding: 12px 14px; border-radius: 10px; animation: fa-from-left 0.35s cubic-bezier(0.22,1,0.36,1) both; }
+  .fa-approve { background: rgba(0,155,58,0.08); border: 1px solid rgba(0,155,58,0.25); }
+  .fa-reject  { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.22); animation-name: fa-from-right; }
+  @keyframes fa-from-left  { from { opacity:0; transform:translateX(-24px); } to { opacity:1; transform:none; } }
+  @keyframes fa-from-right { from { opacity:0; transform:translateX(24px);  } to { opacity:1; transform:none; } }
+  .fa-expert-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+  .fa-expert-tag.green { color: #009b3a; } .fa-expert-tag.red { color: #f87171; }
+  .fa-expert-name { font-family: 'Chakra Petch', monospace; font-size: 14px; font-weight: 700; color: #eaf2ff; margin-bottom: 5px; }
+  .fa-expert-note { font-size: 10.5px; font-weight: 600; padding: 3px 7px; border-radius: 5px; }
+  .fa-expert-note.green { color: #00cc4e; background: rgba(0,155,58,0.12); }
+  .fa-expert-note.red   { color: #f87171; background: rgba(239,68,68,0.1); }
+  .fa-badge { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; animation: fa-pop 0.3s 0.28s cubic-bezier(0.22,1,0.36,1) both; }
+  .fa-badge-icon {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(245,158,11,0.15); border: 2px solid #f59e0b;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; box-shadow: 0 0 14px rgba(245,158,11,0.35);
+  }
+  .fa-badge-label { font-size: 8px; font-weight: 700; color: #f59e0b; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; }
+
+  /* -- Scene 3: brief -- */
+  .fa-brief { display: flex; gap: 18px; align-items: flex-start; }
+  .fa-ring { flex-shrink: 0; animation: fa-pop 0.35s cubic-bezier(0.22,1,0.36,1) both; }
+  .fa-arc { animation: fa-arc-fill 1s 0.1s ease-out both; }
+  @keyframes fa-arc-fill { from { stroke-dashoffset: 301.59; } to { stroke-dashoffset: 84.45; } }
+  .fa-rows { flex: 1; display: flex; flex-direction: column; gap: 9px; padding-top: 4px; }
+  .fa-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #6080a0; animation: fa-from-left 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+  .fa-row-label { flex: 1; }
+  .fa-row-val { font-weight: 600; color: #8090a8; font-family: 'Chakra Petch', monospace; font-size: 11px; }
+  .fa-conflict-note {
+    font-size: 10.5px; color: #d97706; padding: 5px 9px;
+    background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.18); border-radius: 6px;
+    animation: fa-from-left 0.3s cubic-bezier(0.22,1,0.36,1) both;
+  }
+
+  /* -- Scene 4: verdict -- */
+  .fa-verdict { display: flex; flex-direction: column; gap: 10px; }
+  .fa-btns { display: flex; gap: 9px; animation: fa-pop-up 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+  .fa-agree, .fa-disagree {
+    flex: 1; padding: 11px 0; border-radius: 9px;
+    font-family: 'Chakra Petch', monospace; font-size: 12px; font-weight: 700; text-align: center; cursor: default;
+  }
+  .fa-agree {
+    background: rgba(0,155,58,0.18); border: 2px solid rgba(0,155,58,0.5); color: #00cc4e;
+    animation: fa-agree-pulse 1.8s 0.4s ease-in-out infinite;
+  }
+  @keyframes fa-agree-pulse {
+    0%,100% { box-shadow: 0 0 10px rgba(0,155,58,0.25); }
+    50%      { box-shadow: 0 0 26px rgba(0,155,58,0.55); }
+  }
+  .fa-disagree { background: rgba(239,68,68,0.07); border: 2px solid rgba(239,68,68,0.2); color: #f87171; }
+  .fa-approved {
+    padding: 9px 13px; background: rgba(0,155,58,0.1); border: 1.5px solid rgba(0,155,58,0.3); border-radius: 9px;
+    font-size: 11.5px; font-weight: 700; color: #00cc4e; font-family: 'Chakra Petch', monospace;
+    animation: fa-pop-up 0.3s 0.22s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  .fa-timeline { display: flex; flex-direction: column; gap: 7px; }
+  .fa-tl-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #6080a0; animation: fa-from-left 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+
+  /* Shared keyframes */
+  @keyframes fa-pop-up { from { opacity:0; transform:translateY(12px) scale(0.95); } to { opacity:1; transform:none; } }
+  @keyframes fa-pop    { from { opacity:0; transform:scale(0.6); } to { opacity:1; transform:scale(1); } }
+
+  /* Shared dot */
+  .fa-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .fa-dot.green { background: #009b3a; box-shadow: 0 0 5px #009b3a; }
+  .fa-dot.amber { background: #f59e0b; box-shadow: 0 0 5px #f59e0b; }
+
+  /* Step progress dots */
+  .fa-dots { display: flex; gap: 7px; justify-content: center; margin-top: 18px; position: relative; z-index: 1; }
+  .fa-dot-btn {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(255,255,255,0.12); border: none; cursor: pointer;
+    transition: background 0.2s, transform 0.2s, width 0.25s; padding: 0;
+  }
+  .fa-dot-btn.active { background: #009b3a; transform: scale(1.5); width: 18px; border-radius: 3px; }
+  .fa-dot-btn:hover:not(.active) { background: rgba(0,155,58,0.4); }
 `;
