@@ -960,3 +960,44 @@
   .db-root .expertise-card { grid-template-columns: 40px 1fr; }
   .db-root .expertise-stats { display: none; }
 }
+
+/* ── Mobile (≤ 600px) ──────────────────────────────── */
+@media (max-width: 600px) {
+  /* Nav bar — collapse brand text, tighten spacing */
+  .db-root .app-nav { padding: 10px 14px; gap: 8px; }
+  .db-root .app-nav strong { display: none; }
+  .db-root .app-nav-logo { width: 28px; height: 28px; }
+  .db-root .app-nav nav a { font-size: 12px; padding: 5px 10px; }
+  .db-root .nav-right { gap: 6px; margin-left: auto; }
+  .db-root .role-badge { font-size: 10px; padding: 3px 8px; }
+  .db-root .role-badge::before { width: 5px; height: 5px; }
+  .db-root .sign-out-btn { font-size: 11.5px; padding: 5px 10px; }
+
+  /* Layout padding */
+  .db-root .single-layout { padding: 14px; }
+
+  /* Expert identity row */
+  .db-root .expert-id { flex-direction: column; align-items: stretch; gap: 6px; }
+  .db-root .expert-id select { min-width: 0; width: 100%; }
+
+  /* Expert tabs — scrollable, don't shrink */
+  .db-root .expert-tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .db-root .expert-tab { white-space: nowrap; font-size: 12px; padding: 6px 11px; }
+
+  /* Connector grid — single column */
+  .db-root .connector-grid { grid-template-columns: 1fr; }
+
+  /* MCP endpoint + OAuth token rows — stack vertically */
+  .db-root .conn-endpoint-row { flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 14px 14px; }
+  .db-root .conn-endpoint-label { white-space: normal; }
+  .db-root .conn-endpoint-input { width: 100%; box-sizing: border-box; }
+  .db-root .conn-gmail-token-row { flex-direction: column; align-items: stretch; gap: 6px; }
+  .db-root .conn-gmail-token-row .conn-endpoint-input { width: 100%; box-sizing: border-box; }
+
+  /* LLM grid — single column */
+  .db-root .llm-grid { grid-template-columns: 1fr; }
+
+  /* Admin people list */
+  .db-root .check-person-row { flex-direction: column; align-items: stretch; gap: 6px; }
+  .db-root .person-email-col { padding-left: 28px; }
+}
