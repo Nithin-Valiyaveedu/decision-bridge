@@ -397,7 +397,7 @@ function Scene9() {
 function Scene10() {
   const team = [
     { photo:"/teamphotos/nithin.jpeg",  name:"Nithin Valiyaveedu", role:"Full-stack & AI Engineering" },
-    { photo:"/teamphotos/narmada.jpeg", name:"Narmada",            role:"Product & Design" },
+    { photo:"/teamphotos/narmada.jpeg", name:"Narmada Gunasekaran",            role:"Product & Design" },
     { photo:"/teamphotos/sidhi.jpeg",   name:"Siddhi Shivtarkar",  role:"Business & Strategy" },
     { photo:"/teamphotos/rupa.jpeg",    name:"Rupa Poudel",               role:"UX & Research" },
   ];
