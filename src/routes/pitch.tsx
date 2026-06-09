@@ -414,9 +414,6 @@ function Scene10() {
           </div>
         ))}
       </div>
-      <div className="team-built" style={{ animationDelay:"0.65s" }}>
-        <div className="team-built-text">Built at <strong>Infineon Hackathon 2025</strong> — idea to working MVP</div>
-      </div>
     </div>
   );
 }
@@ -493,6 +490,46 @@ function PrintDeck() {
           position: absolute; top: 20px; right: 28px; z-index: 10;
           font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.45);
         }
+        /* Fix vw-based font sizes — inside 1280px slide, 6.5vw = 83px (too big) */
+        .print-slide .scene { padding: 36px 52px 24px; gap: 10px; overflow: hidden; }
+        .print-slide .scene-title { font-size: 2.2rem !important; line-height: 1.1 !important; text-shadow: none !important; }
+        .print-slide .scene-title-sm { font-size: 1.75rem !important; line-height: 1.1 !important; text-shadow: none !important; }
+        .print-slide * { text-shadow: none !important; }
+        .print-slide .scene-sub { font-size: 0.9rem !important; }
+        .print-slide .scene-footnote { font-size: 0.7rem !important; padding-top: 8px !important; }
+        .print-slide .scene-eyebrow { font-size: 0.6rem !important; }
+        /* Scene 1 cards */
+        .print-slide .s1-cards { gap: 12px; }
+        .print-slide .s1-card { padding: 18px 20px; }
+        .print-slide .s1-card-q { font-size: 0.95rem !important; }
+        .print-slide .s1-pain { font-size: 0.8rem !important; }
+        /* Scene 5 steps */
+        .print-slide .s5-steps { gap: 10px; }
+        .print-slide .s5-step { padding: 14px 16px; }
+        .print-slide .s5-step-n { font-size: 20px !important; }
+        .print-slide .s5-title { font-size: 1.6rem !important; }
+        /* Scene 5 connector row — prevent overflow */
+        .print-slide .s5-header { gap: 14px; }
+        .print-slide .s5-logo-img { width: 48px !important; height: 48px !important; }
+        .print-slide .s5-connectors-row { gap: 6px !important; flex-wrap: nowrap !important; }
+        .print-slide .s5-chip { font-size: 11px !important; padding: 4px 10px 4px 4px !important; }
+        .print-slide .s5-chip-icon { width: 22px !important; height: 22px !important; font-size: 10px !important; }
+        .print-slide .s5-arrow-inline { font-size: 16px !important; }
+        .print-slide .s5-db-node { width: 38px !important; height: 38px !important; }
+        .print-slide .s5-brief-chip { font-size: 11px !important; padding: 7px 13px !important; }
+        /* Scene 8 orbit — prevent competitor cards from overflowing */
+        .print-slide .orbit-wrap { width: 480px !important; height: 370px !important; }
+        .print-slide .orbit-ring { width: 230px !important; height: 230px !important; }
+        .print-slide .orbit-spoke { width: 100px !important; }
+        .print-slide .orbit-comp-name { font-size: 11px !important; padding: 6px 11px !important; }
+        .print-slide .orbit-comp-miss { font-size: 10px !important; padding: 2px 8px !important; }
+        .print-slide .orbit-db-logo { width: 72px !important; height: 72px !important; }
+        .print-slide .orbit-db-name { font-size: 13px !important; }
+        .print-slide .orbit-db-checks span { font-size: 10px !important; padding: 2px 10px !important; }
+        .print-slide .orbit-comp { max-width: 160px !important; }
+        .print-slide .orbit-comp-name { white-space: normal !important; line-height: 1.3 !important; text-align: center !important; }
+        .print-slide .orbit-comp-miss { white-space: normal !important; text-align: center !important; font-size: 9px !important; }
+
         /* Print: remove scaling, each slide is exactly one page */
         @media print {
           html, body { background: white; }
