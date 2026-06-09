@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PitchRouteImport } from './routes/pitch'
 import { Route as OauthCallbackRouteImport } from './routes/oauth-callback'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
@@ -17,6 +18,11 @@ import { Route as AuthenticatedPmRouteImport } from './routes/_authenticated/pm'
 import { Route as AuthenticatedExpertRouteImport } from './routes/_authenticated/expert'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 
+const PitchRoute = PitchRouteImport.update({
+  id: '/pitch',
+  path: '/pitch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OauthCallbackRoute = OauthCallbackRouteImport.update({
   id: '/oauth-callback',
   path: '/oauth-callback',
@@ -56,6 +62,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/oauth-callback': typeof OauthCallbackRoute
+  '/pitch': typeof PitchRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/expert': typeof AuthenticatedExpertRoute
   '/pm': typeof AuthenticatedPmRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/oauth-callback': typeof OauthCallbackRoute
+  '/pitch': typeof PitchRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/expert': typeof AuthenticatedExpertRoute
   '/pm': typeof AuthenticatedPmRoute
@@ -74,21 +82,37 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/oauth-callback': typeof OauthCallbackRoute
+  '/pitch': typeof PitchRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/expert': typeof AuthenticatedExpertRoute
   '/_authenticated/pm': typeof AuthenticatedPmRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/oauth-callback' | '/admin' | '/expert' | '/pm'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/oauth-callback'
+    | '/pitch'
+    | '/admin'
+    | '/expert'
+    | '/pm'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/oauth-callback' | '/admin' | '/expert' | '/pm'
+  to:
+    | '/'
+    | '/auth'
+    | '/oauth-callback'
+    | '/pitch'
+    | '/admin'
+    | '/expert'
+    | '/pm'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/oauth-callback'
+    | '/pitch'
     | '/_authenticated/admin'
     | '/_authenticated/expert'
     | '/_authenticated/pm'
@@ -99,10 +123,18 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   OauthCallbackRoute: typeof OauthCallbackRoute
+  PitchRoute: typeof PitchRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/pitch': {
+      id: '/pitch'
+      path: '/pitch'
+      fullPath: '/pitch'
+      preLoaderRoute: typeof PitchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/oauth-callback': {
       id: '/oauth-callback'
       path: '/oauth-callback'
@@ -175,6 +207,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   OauthCallbackRoute: OauthCallbackRoute,
+  PitchRoute: PitchRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

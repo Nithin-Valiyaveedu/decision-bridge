@@ -241,6 +241,7 @@ function LandingPage() {
             <span className="lp-logo-mark">DB</span>
             <span className="lp-logo-name">DecisionBridge</span>
           </a>
+          <a href="/pitch" className="lp-nav-link" style={{marginRight:8}}>Pitch deck</a>
           <a href="/auth" className="lp-nav-link">Sign in →</a>
         </nav>
 
