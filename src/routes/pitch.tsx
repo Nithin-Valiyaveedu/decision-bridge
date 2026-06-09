@@ -402,7 +402,7 @@ function Scene10() {
     { photo:"/teamphotos/nithin.jpeg",  name:"Nithin Valiyaveedu", role:"Full-stack & AI Engineering" },
     { photo:"/teamphotos/narmada.jpeg", name:"Narmada",            role:"Product & Design" },
     { photo:"/teamphotos/sidhi.jpeg",   name:"Siddhi Shivtarkar",  role:"Business & Strategy" },
-    { photo:"/teamphotos/runi.jpeg",    name:"Runi",               role:"UX & Research" },
+    { photo:"/teamphotos/rupa.jpeg",    name:"Rupa Poudel",               role:"UX & Research" },
   ];
   return (
     <div className="scene scene10">
@@ -434,34 +434,10 @@ function Scene11() {
         </h1>
         <p className="s11-sub" style={{ animationDelay:"0.35s" }}>Let's build the bridge.</p>
         <div className="s11-qr-wrap" style={{ animationDelay:"0.55s" }}>
-          {/* QR code — replace SVG data with your real QR image if needed */}
-          <svg viewBox="0 0 120 120" width="140" height="140" fill="none" xmlns="http://www.w3.org/2000/svg" className="s11-qr">
-            {/* Outer corner squares */}
-            <rect x="8" y="8" width="34" height="34" rx="4" fill="white"/>
-            <rect x="13" y="13" width="24" height="24" rx="2" fill="currentColor"/>
-            <rect x="18" y="18" width="14" height="14" rx="1" fill="white"/>
-            <rect x="78" y="8" width="34" height="34" rx="4" fill="white"/>
-            <rect x="83" y="13" width="24" height="24" rx="2" fill="currentColor"/>
-            <rect x="88" y="18" width="14" height="14" rx="1" fill="white"/>
-            <rect x="8" y="78" width="34" height="34" rx="4" fill="white"/>
-            <rect x="13" y="83" width="24" height="24" rx="2" fill="currentColor"/>
-            <rect x="18" y="88" width="14" height="14" rx="1" fill="white"/>
-            {/* Data dots */}
-            {[50,56,62,50,62,50,56,62].map((x,i)=><rect key={i} x={x} y={[8,8,8,14,14,20,20,20][i]} width="4" height="4" rx="1" fill="white"/>)}
-            {[8,14,20,8,20,8,14,20].map((y,i)=><rect key={i} x={[50,50,50,56,56,62,62,62][i]} y={y} width="4" height="4" rx="1" fill="white"/>)}
-            {[50,56,62,68,74,50,56,62,68,74,50,56,62,68,74].map((x,i)=><rect key={i} x={x} y={[50,50,50,50,50,56,56,56,56,56,62,62,62,62,62][i]} width="4" height="4" rx="1" fill="white" opacity={[1,0,1,1,0,0,1,0,1,1,1,1,0,1,0][i]}/>)}
-            {[50,56,62,68,74,50,56,62,68,74].map((x,i)=><rect key={i} x={x} y={[68,68,68,68,68,74,74,74,74,74][i]} width="4" height="4" rx="1" fill="white" opacity={[1,0,1,0,1,0,1,1,0,1][i]}/>)}
-            {[50,56,62,68,74].map((x,i)=><rect key={i} x={x} y={80} width="4" height="4" rx="1" fill="white" opacity={[0,1,0,1,1][i]}/>)}
-            {/* Extra data cells */}
-            {[86,92,98,86,98,86,92,98].map((x,i)=><rect key={i} x={x} y={[50,50,50,56,56,62,62,62][i]} width="4" height="4" rx="1" fill="white" opacity={[1,0,1,0,1,1,1,0][i]}/>)}
-            {[86,92,98].map((x,i)=><rect key={i} x={x} y={68} width="4" height="4" rx="1" fill="white" opacity={[0,1,1][i]}/>)}
-            {[86,92,98,86,92,98].map((x,i)=><rect key={i} x={x} y={[74,74,74,80,80,80][i]} width="4" height="4" rx="1" fill="white" opacity={[1,0,1,1,1,0][i]}/>)}
-            {/* left column extras */}
-            {[8,14,20,26,8,14,20,26].map((y,i)=><rect key={i} x={[50,50,50,50,56,56,56,56][i]} y={y} width="4" height="4" rx="1" fill="white" opacity={[1,0,1,1,0,1,0,1][i]}/>)}
-          </svg>
+          <img src="/teamphotos/QR.png" alt="QR code" className="s11-qr" />
           <div className="s11-qr-label">Scan to try it live</div>
         </div>
-        <a href="/pm" className="s11-demo-btn" style={{ animationDelay:"0.75s" } as React.CSSProperties} onClick={e => e.stopPropagation()}>
+        <a href="https://web-unfold-react.vercel.app/auth" target="_blank" rel="noopener noreferrer" className="s11-demo-btn" style={{ animationDelay:"0.75s" } as React.CSSProperties} onClick={e => e.stopPropagation()}>
           Launch live demo
         </a>
       </div>
@@ -821,7 +797,7 @@ const CSS = `
 .s11-headline{font-size:clamp(3rem,6.5vw,5.5rem);font-weight:800;text-align:center;color:#fff;line-height:1.08;animation:fade-up 0.5s both;text-shadow:0 4px 32px rgba(0,0,0,0.3);}
 .s11-sub{font-size:clamp(1.1rem,2.5vw,1.9rem);font-weight:400;color:rgba(255,255,255,0.85);text-align:center;animation:fade-up 0.45s both;letter-spacing:0.02em;}
 .s11-qr-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;animation:pop-in 0.4s both;}
-.s11-qr{color:#0a2580;background:white;border-radius:12px;padding:8px;}
+.s11-qr{width:160px;height:160px;border-radius:12px;padding:8px;background:white;object-fit:contain;}
 .s11-qr-label{font-size:12px;font-weight:700;color:rgba(255,255,255,0.65);text-transform:uppercase;letter-spacing:.12em;}
 .s11-demo-btn{display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);border:2px solid rgba(255,255,255,0.5);color:#fff;font-family:var(--font);font-size:17px;font-weight:700;padding:15px 40px;border-radius:50px;text-decoration:none;animation:pop-in 0.35s both;cursor:pointer;transition:transform 0.15s,background 0.15s,box-shadow 0.15s;}
 .s11-demo-btn:hover{transform:scale(1.04);background:rgba(255,255,255,0.25);box-shadow:0 0 40px rgba(255,255,255,0.2);}
