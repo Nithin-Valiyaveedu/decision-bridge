@@ -754,6 +754,10 @@
 .db-root .tl-tag.red { background: #fff1f2; color: #be123c; }
 .db-root .log-stat.conflict { background: #fff1f2; border-color: #fecdd3; }
 .db-root .log-stat.conflict strong { color: #be123c; }
+.db-root .log-stat.approved { background: #f0fdf4; border-color: #bbf7d0; }
+.db-root .log-stat.approved strong { color: #009b3a; }
+.db-root .log-stat.rejected { background: #fff1f2; border-color: #fecdd3; }
+.db-root .log-stat.rejected strong { color: #be123c; }
 .db-root .tl-conflict-body { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
 .db-root .tl-conflict-side { flex: 1; border-radius: 8px; padding: 8px 12px; font-size: 12px; }
 .db-root .tl-conflict-side strong { display: block; font-size: 12.5px; margin-bottom: 2px; }

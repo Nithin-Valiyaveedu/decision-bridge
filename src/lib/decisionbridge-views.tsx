@@ -2156,8 +2156,9 @@ export function PmChatView() {
   };
 
   const showStarters = messages.length === 1;
+  const pmDecisions = usePmDecisions();
 
-  const logEvents = [...kb, ...tickets].length;
+  const logEvents = [...kb, ...tickets, ...pmDecisions].length;
 
   return (
     <section className="view pm-view">
@@ -2168,7 +2169,7 @@ export function PmChatView() {
         </button>
       </div>
       {pmTab === "log" && (
-        <PmDecisionLog kb={kb} tickets={tickets} projects={projects} selectedProjectId={selectedProjectId} />
+        <PmDecisionLog kb={kb} tickets={tickets} pmDecisions={pmDecisions} projects={projects} selectedProjectId={selectedProjectId} />
       )}
       {pmTab === "chat" && <>
       <section className="chat-area" ref={chatRef}>
@@ -2263,10 +2264,11 @@ export function PmChatView() {
 }
 
 function PmDecisionLog({
-  kb, tickets, projects, selectedProjectId,
+  kb, tickets, pmDecisions, projects, selectedProjectId,
 }: {
   kb: Knowledge[];
   tickets: ReturnType<typeof useTickets>;
+  pmDecisions: PmDecision[];
   projects: ReturnType<typeof useProjects>;
   selectedProjectId: string;
 }) {
@@ -2275,7 +2277,8 @@ function PmDecisionLog({
   type TlEvent =
     | { kind: "knowledge"; ts: number; area: string; expert: string; source: string; text: string }
     | { kind: "ticket"; ts: number; area: string; assignedTo: string; question: string; status: string; answer?: string; answeredAt?: number }
-    | { kind: "conflict"; ts: number; area: string; expertA: string; stanceA: string; expertB: string; stanceB: string };
+    | { kind: "conflict"; ts: number; area: string; expertA: string; stanceA: string; expertB: string; stanceB: string }
+    | { kind: "verdict"; ts: number; area: string; verdict: "approved" | "rejected"; topic: string; question: string; score: number; comment: string; experts: string[] };
 
   const scopedKb = kb.filter((k) => !project || k.projectId === project.id);
 
@@ -2293,6 +2296,20 @@ function PmDecisionLog({
     }
   }
 
+  const verdictEvents: TlEvent[] = pmDecisions
+    .filter((d) => !project || d.projectId === project.id)
+    .map((d): TlEvent => ({
+      kind: "verdict",
+      ts: d.createdAt,
+      area: d.topic,
+      verdict: d.verdict,
+      topic: d.topic,
+      question: d.question,
+      score: d.score,
+      comment: d.comment,
+      experts: d.expertsConsulted,
+    }));
+
   const events: TlEvent[] = [
     ...scopedKb
       .map((k): TlEvent => ({ kind: "knowledge", ts: k.createdAt, area: k.area, expert: k.expert, source: k.source, text: k.text.slice(0, 160) + (k.text.length > 160 ? "…" : "") })),
@@ -2300,6 +2317,7 @@ function PmDecisionLog({
       .filter((t) => !project || t.projectId === project.id)
       .map((t): TlEvent => ({ kind: "ticket", ts: t.createdAt, area: t.area, assignedTo: t.assignedTo, question: t.question, status: t.status, answer: t.answer, answeredAt: t.answeredAt })),
     ...conflictEvents,
+    ...verdictEvents,
   ].sort((a, b) => b.ts - a.ts);
 
   const fmt = (ts: number) => {
@@ -2314,6 +2332,8 @@ function PmDecisionLog({
   const ticketCount = events.filter((e) => e.kind === "ticket").length;
   const answeredCount = tickets.filter((t) => t.status === "answered" && (!project || t.projectId === project.id)).length;
   const conflictCount = conflictEvents.length;
+  const approvedCount = verdictEvents.filter((e) => e.kind === "verdict" && e.verdict === "approved").length;
+  const rejectedCount = verdictEvents.filter((e) => e.kind === "verdict" && e.verdict === "rejected").length;
 
   return (
     <div className="decision-log">
@@ -2328,6 +2348,12 @@ function PmDecisionLog({
           {conflictCount > 0 && (
             <div className="log-stat conflict"><strong>{conflictCount}</strong><span>conflict{conflictCount > 1 ? "s" : ""} detected</span></div>
           )}
+          {approvedCount > 0 && (
+            <div className="log-stat approved"><strong>{approvedCount}</strong><span>approved</span></div>
+          )}
+          {rejectedCount > 0 && (
+            <div className="log-stat rejected"><strong>{rejectedCount}</strong><span>rejected</span></div>
+          )}
         </div>
       </div>
 
@@ -2338,13 +2364,26 @@ function PmDecisionLog({
           {events.map((e, i) => (
             <div key={i} className={`tl-event ${e.kind}`}>
               <div className="tl-left">
-                <div className={`tl-dot ${e.kind === "knowledge" ? "green" : e.kind === "conflict" ? "red" : e.kind === "ticket" && e.status === "answered" ? "blue" : "orange"}`} />
+                <div className={`tl-dot ${
+                  e.kind === "knowledge" ? "green"
+                  : e.kind === "conflict" ? "red"
+                  : e.kind === "verdict" ? (e.verdict === "approved" ? "green" : "red")
+                  : e.kind === "ticket" && e.status === "answered" ? "blue" : "orange"
+                }`} />
                 {i < events.length - 1 && <div className="tl-line" />}
               </div>
               <div className="tl-body">
                 <div className="tl-head">
-                  <span className={`tl-tag ${e.kind === "knowledge" ? "green" : e.kind === "conflict" ? "red" : e.kind === "ticket" && e.status === "answered" ? "blue" : "orange"}`}>
-                    {e.kind === "knowledge" ? "Knowledge captured" : e.kind === "conflict" ? "⚠ Conflict detected" : e.status === "answered" ? "Expert answered" : "Ticket sent"}
+                  <span className={`tl-tag ${
+                    e.kind === "knowledge" ? "green"
+                    : e.kind === "conflict" ? "red"
+                    : e.kind === "verdict" ? (e.verdict === "approved" ? "green" : "red")
+                    : e.kind === "ticket" && e.status === "answered" ? "blue" : "orange"
+                  }`}>
+                    {e.kind === "knowledge" ? "Knowledge captured"
+                      : e.kind === "conflict" ? "⚠ Conflict detected"
+                      : e.kind === "verdict" ? (e.verdict === "approved" ? "✓ PM approved" : "✗ PM rejected")
+                      : e.status === "answered" ? "Expert answered" : "Ticket sent"}
                   </span>
                   <span className="tl-area">{e.area}</span>
                   <span className="tl-time">{fmt(e.ts)}</span>
@@ -2374,6 +2413,18 @@ function PmDecisionLog({
                       <span>{e.stanceB === "approve" ? "✓ Supports" : "✗ Against"}</span>
                     </div>
                   </div>
+                )}
+                {e.kind === "verdict" && (
+                  <>
+                    <p className="tl-text"><strong>Decision question:</strong> "{e.question}"</p>
+                    <p className="tl-text">Readiness score: <strong>{e.score}%</strong></p>
+                    {e.comment && <p className="tl-text tl-answer"><strong>PM note:</strong> {e.comment}</p>}
+                    <div className="tl-meta">
+                      {e.experts.length > 0
+                        ? `Experts consulted: ${e.experts.map((ex) => ex.split(" · ")[0]).join(", ")}`
+                        : "No experts consulted"}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
