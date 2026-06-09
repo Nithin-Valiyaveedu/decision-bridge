@@ -32,7 +32,7 @@ function AuthPage() {
       <main className="shell">
         <section className="app-card auth-card">
           <div className="auth-hero">
-            <div className="logo-mark auth-logo">DB</div>
+            <img src="/teamphotos/brand.png" alt="DecisionBridge" className="logo-mark auth-logo" />
             <h1 className="auth-title">DecisionBridge</h1>
             <p className="auth-subtitle">AI-powered decision templates made easy with connectors from your own workspaces</p>
           </div>

@@ -213,10 +213,7 @@
 .db-root .brand-row { display: flex; align-items: center; gap: 12px; }
 .db-root .logo-mark {
   width: 38px; height: 38px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--green), var(--green-2));
-  color: #fff;
-  display: grid; place-items: center;
-  font-family: var(--fd); font-weight: 800; font-size: 13px; letter-spacing: -0.02em;
+  object-fit: cover;
 }
 .db-root .app-header h1 {
   margin: 0;
@@ -242,6 +239,12 @@
   padding: 13px 28px;
   background: var(--surface);
   border-bottom: 2px solid var(--green);
+}
+.db-root .app-nav-brand { display: flex; align-items: center; gap: 10px; }
+.db-root .app-nav-logo {
+  width: 32px; height: 32px; border-radius: 8px; object-fit: cover;
+  background: linear-gradient(135deg, #0a2580, #1a4fad);
+  padding: 4px; box-sizing: border-box;
 }
 .db-root .app-nav strong {
   font-family: var(--fd); font-weight: 800; font-size: 17px; letter-spacing: -0.03em;
@@ -582,7 +585,7 @@
 /* ── Auth page ─────────────────────────────────────── */
 .db-root .auth-card { max-width: 480px; margin: 50px auto; display: flex; flex-direction: column; overflow: visible; height: auto; min-height: 0; }
 .db-root .auth-hero { text-align: center; padding: 48px 32px 28px; }
-.db-root .auth-logo { margin: 0 auto 20px; width: 64px; height: 64px; border-radius: 18px; font-size: 22px; }
+.db-root .auth-logo { margin: 0 auto 20px; width: 64px; height: 64px; border-radius: 18px; object-fit: cover; display: block; background: linear-gradient(135deg, #0a2580, #1a4fad); padding: 6px; box-sizing: border-box; }
 .db-root .auth-title { margin: 0 0 8px; font-family: var(--fd); font-size: 28px; font-weight: 800; letter-spacing: -0.04em; color: var(--t1); }
 .db-root .auth-subtitle { margin: 0; color: var(--t3); font-size: 14.5px; }
 .db-root .auth-body { padding: 0 32px 40px; }

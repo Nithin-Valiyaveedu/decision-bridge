@@ -238,7 +238,7 @@ function LandingPage() {
         {/* ── Navbar ──────────────────────────────────────────────── */}
         <nav className="lp-nav">
           <a href="/" className="lp-logo">
-            <span className="lp-logo-mark">DB</span>
+            <img src="/teamphotos/brand.png" alt="DecisionBridge" className="lp-logo-mark" />
             <span className="lp-logo-name">DecisionBridge</span>
           </a>
           <a href="/pitch" className="lp-nav-link" style={{marginRight:8}}>Pitch deck</a>
@@ -493,11 +493,8 @@ const CSS = `
 
   .lp-logo-mark {
     width: 32px; height: 32px; border-radius: 8px;
-    background: #009b3a;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Chakra Petch', sans-serif;
-    font-weight: 700; font-size: 12px; color: #fff; letter-spacing: 0.02em;
-    box-shadow: 0 0 14px rgba(0,155,58,0.45);
+    object-fit: cover;
+    box-shadow: 0 0 14px rgba(0,155,58,0.35);
   }
 
   .lp-logo-name {

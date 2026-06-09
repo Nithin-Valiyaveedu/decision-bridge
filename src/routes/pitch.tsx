@@ -41,7 +41,7 @@ function Scene1() {
   return (
     <div className="scene scene1">
       <div className="scene-eyebrow">The Problem</div>
-      <h1 className="scene-title">Engineering business decisions<br /><span className="accent">keep getting harder</span></h1>
+      <h1 className="scene-title">Business decisions<br /><span className="accent">keep getting harder</span></h1>
       <div className="s1-cards">
         {problems.map((item, i) => (
           <div key={i} className="s1-card" style={{ animationDelay: `${0.3 + i * 0.18}s` }}>
@@ -109,34 +109,40 @@ function Scene3() {
       <div className="scene-eyebrow">Persona 2 — The Experts</div>
       <h2 className="scene-title-sm">The experts exist.<br /><span className="accent">But they're invisible to Sarah.</span></h2>
       <div className="s3-experts">
-        <div className="s3-expert-wrap left" style={{ animationDelay: "0.1s" }}>
-          <div className="s3-pings">
-            {[0,1,2,3].map(i => <div key={i} className="s3-ping" style={{ animationDelay:`${i*0.3}s`, left:`${10+i*22}%` }}>📧</div>)}
+        <div className="s3-expert-card" style={{ animationDelay: "0.15s" }}>
+          <div className="s3-expert-avatar-col">
+            <LottieAvatar src={LOTTIE_EXPERT1} initials="LM" gradient="linear-gradient(135deg,#1e3a8a,#3b82f6)" size={200} />
           </div>
-          <LottieAvatar src={LOTTIE_EXPERT1} initials="LM" gradient="linear-gradient(135deg,#1e3a8a,#3b82f6)" size={280} />
-          <div className="persona-card">
-            <div className="persona-info">
-              <div className="persona-name">Dr. L. Müller</div>
-              <div className="persona-role">Battery Technology Expert</div>
+          <div className="s3-expert-info-col">
+            <div className="s3-expert-label">Expert 01</div>
+            <div className="s3-expert-name">Dr. L. Müller</div>
+            <div className="s3-expert-role">Battery Technology Expert</div>
+            <div className="s3-expert-quote">"Same question. 4th time this month."</div>
+            <div className="s3-pings-inline">
+              {[0,1,2,3].map(i => <div key={i} className="s3-ping-dot" style={{ animationDelay:`${0.6+i*0.25}s` }} />)}
             </div>
           </div>
-          <div className="s3-bubble-expert" style={{ animationDelay:"0.7s" }}>"Same question.<br />4th time this month."</div>
         </div>
-        <div className="s3-divider">
-          <div className="s3-div-line" /><div className="s3-div-icon">🔒</div><div className="s3-div-line" />
+
+        <div className="s3-vs-divider">
+          <div className="s3-vs-line" />
+          <div className="s3-vs-badge">No Link</div>
+          <div className="s3-vs-line" />
         </div>
-        <div className="s3-expert-wrap right" style={{ animationDelay:"0.3s" }}>
-          <div className="s3-pings">
-            {[0,1,2].map(i => <div key={i} className="s3-ping" style={{ animationDelay:`${0.5+i*0.35}s`, left:`${15+i*28}%` }}>💬</div>)}
+
+        <div className="s3-expert-card" style={{ animationDelay: "0.35s" }}>
+          <div className="s3-expert-avatar-col">
+            <LottieAvatar src={LOTTIE_EXPERT2} initials="TR" gradient="linear-gradient(135deg,#7c2d12,#ea580c)" size={200} />
           </div>
-          <LottieAvatar src={LOTTIE_EXPERT2} initials="TR" gradient="linear-gradient(135deg,#1d4ed8,#3b82f6)" size={280} />
-          <div className="persona-card">
-            <div className="persona-info">
-              <div className="persona-name">T. Richter</div>
-              <div className="persona-role">Supply Chain & Risk Expert</div>
+          <div className="s3-expert-info-col">
+            <div className="s3-expert-label">Expert 02</div>
+            <div className="s3-expert-name">T. Richter</div>
+            <div className="s3-expert-role">Supply Chain &amp; Risk Expert</div>
+            <div className="s3-expert-quote">"Nobody told me Sarah needed this."</div>
+            <div className="s3-pings-inline">
+              {[0,1,2].map(i => <div key={i} className="s3-ping-dot" style={{ animationDelay:`${0.8+i*0.25}s`, background:"rgba(234,88,12,0.7)" }} />)}
             </div>
           </div>
-          <div className="s3-bubble-expert" style={{ animationDelay:"0.9s" }}>"Nobody told me<br />Sarah needed this."</div>
         </div>
       </div>
       <div className="scene-footnote">The knowledge exists. It is just not connected.</div>
@@ -150,26 +156,41 @@ function Scene4() {
     <div className="scene scene4">
       <div className="scene-eyebrow">The Hidden Risk</div>
       <h2 className="scene-title-sm">Worse — they disagree.<br /><span className="accent-amber">And nobody knows.</span></h2>
-      <div className="s4-layout">
-        <div className="s4-side">
-          <LottieAvatar src={LOTTIE_EXPERT1} initials="LM" gradient="linear-gradient(135deg,#1e3a8a,#3b82f6)" size={260} />
-          <div className="persona-card s4-card" style={{ animationDelay:"0.15s" }}>
-            <div className="persona-info"><div className="persona-name">Dr. L. Müller</div><div className="persona-role">Battery Technology Expert</div></div>
+      <div className="s4-cards-row">
+        <div className="s4-expert-card" style={{ animationDelay:"0.15s" }}>
+          <div className="s4-avatar-col">
+            <LottieAvatar src={LOTTIE_EXPERT1} initials="LM" gradient="linear-gradient(135deg,#1e3a8a,#3b82f6)" size={160} />
           </div>
-          <div className="s4-stance green" style={{ animationDelay:"0.4s" }}>✓ CATL LFP is market-ready now</div>
-          <div className="s4-team" style={{ animationDelay:"0.6s" }}>PM Team A → asked Müller<br /><strong>→ Partnership approved ✓</strong></div>
+          <div className="s4-info-col">
+            <div className="s3-expert-label">Expert 01</div>
+            <div className="s4-expert-name">Dr. L. Müller</div>
+            <div className="s4-expert-role">Battery Technology Expert</div>
+            <div className="s4-stance-pill green" style={{ animationDelay:"0.4s" }}>✓ CATL LFP is market-ready now</div>
+            <div className="s4-team-note" style={{ animationDelay:"0.6s" }}>PM Team A → <strong>Partnership approved ✓</strong></div>
+          </div>
         </div>
+
         <div className="s4-wall">
-          <div className="s4-wall-bar" /><div className="s4-wall-icon">🔒</div>
-          <div className="s4-conflict-badge" style={{ animationDelay:"0.8s" }}>⚠ Inconsistent<br />decisions</div>
-        </div>
-        <div className="s4-side">
-          <LottieAvatar src={LOTTIE_EXPERT2} initials="TR" gradient="linear-gradient(135deg,#1d4ed8,#3b82f6)" size={260} />
-          <div className="persona-card s4-card" style={{ animationDelay:"0.3s" }}>
-            <div className="persona-info"><div className="persona-name">T. Richter</div><div className="persona-role">Supply Chain & Risk Expert</div></div>
+          <div className="s4-wall-line" />
+          <div className="s4-conflict-badge" style={{ animationDelay:"0.8s" }}>
+            <div className="s4-conflict-icon">!</div>
+            <div className="s4-conflict-title">Conflict</div>
+            <div className="s4-conflict-sub">Inconsistent decisions</div>
           </div>
-          <div className="s4-stance red" style={{ animationDelay:"0.55s" }}>✗ Hold — China supply chain risk</div>
-          <div className="s4-team" style={{ animationDelay:"0.75s" }}>PM Team B → asked Richter<br /><strong>→ On Hold ✗</strong></div>
+          <div className="s4-wall-line" />
+        </div>
+
+        <div className="s4-expert-card" style={{ animationDelay:"0.3s" }}>
+          <div className="s4-avatar-col">
+            <LottieAvatar src={LOTTIE_EXPERT2} initials="TR" gradient="linear-gradient(135deg,#7c2d12,#ea580c)" size={160} />
+          </div>
+          <div className="s4-info-col">
+            <div className="s3-expert-label">Expert 02</div>
+            <div className="s4-expert-name">T. Richter</div>
+            <div className="s4-expert-role">Supply Chain &amp; Risk Expert</div>
+            <div className="s4-stance-pill red" style={{ animationDelay:"0.55s" }}>✗ Hold — China supply chain risk</div>
+            <div className="s4-team-note" style={{ animationDelay:"0.75s" }}>PM Team B → <strong>On Hold ✗</strong></div>
+          </div>
         </div>
       </div>
       <div className="scene-footnote">Same question. Opposite answers. Nobody noticed.</div>
@@ -188,13 +209,13 @@ function Scene5() {
   const steps = [
     { n:"01", label:"Capture", desc:"AI scans Gmail, Jira, Slack and Teams for expert knowledge" },
     { n:"02", label:"Detect", desc:"Surfaces conflicts between experts automatically" },
-    { n:"03", label:"Decide", desc:"Delivers a scored Decision Brief with a full audit trail" },
+    { n:"03", label:"Translate", desc:"Delivers a scored Decision Brief translated to business language" },
   ];
   return (
     <div className="scene scene5">
       <div className="scene-eyebrow">The Solution</div>
       <div className="s5-header">
-        <div className="s5-logo">DB</div>
+        <img src="/teamphotos/brand.png" alt="DecisionBridge" className="s5-logo-img" />
         <div>
           <h1 className="s5-title">DecisionBridge</h1>
           <p className="s5-tagline">AI-powered decision briefs from your team's existing tools</p>
@@ -208,7 +229,7 @@ function Scene5() {
           </div>
         ))}
         <div className="s5-arrow-inline" style={{ animationDelay:"1.2s" }}>→</div>
-        <div className="s5-db-node" style={{ animationDelay:"1.3s" }}>DB</div>
+        <img src="/teamphotos/brand.png" alt="DB" className="s5-db-node" style={{ animationDelay:"1.3s" } as React.CSSProperties} />
         <div className="s5-arrow-inline" style={{ animationDelay:"1.4s" }}>→</div>
         <div className="s5-brief-chip" style={{ animationDelay:"1.5s" }}>Decision Brief</div>
       </div>
@@ -320,7 +341,7 @@ function Scene8() {
         ))}
         {/* Center */}
         <div className="orbit-center">
-          <div className="orbit-db-logo">DB</div>
+          <img src="/teamphotos/brand.png" alt="DecisionBridge" className="orbit-db-logo" />
           <div className="orbit-db-name">DecisionBridge</div>
           <div className="orbit-db-checks">
             <span>✓ Auto-capture</span>
@@ -342,7 +363,7 @@ function Scene9() {
       highlight: false,
     },
     {
-      name: "Growth", price: "€49", sub: "/seat/month",
+      name: "Growth", price: "€10", sub: "/seat/month",
       features: ["All 6 connectors", "Conflict detection", "Unlimited decisions", "Team knowledge base"],
       highlight: true,
     },
@@ -378,25 +399,26 @@ function Scene9() {
 // ─── Scene 10 — Team ─────────────────────────────────────────────────────────
 function Scene10() {
   const team = [
-    { initials:"N", name:"Nithin Valiyaveedu", role:"Full-stack & AI Engineering", gradient:"linear-gradient(135deg,#1e3a8a,#3b82f6)" },
-    { initials:"?", name:"Team Member 2", role:"Product & Design", gradient:"linear-gradient(135deg,#1d4ed8,#3b82f6)" },
-    { initials:"?", name:"Team Member 3", role:"Backend & Integrations", gradient:"linear-gradient(135deg,#7c3aed,#a78bfa)" },
+    { photo:"/teamphotos/nithin.jpeg",  name:"Nithin Valiyaveedu", role:"Full-stack & AI Engineering" },
+    { photo:"/teamphotos/narmada.jpeg", name:"Narmada",            role:"Product & Design" },
+    { photo:"/teamphotos/sidhi.jpeg",   name:"Siddhi Shivtarkar",  role:"Business & Strategy" },
+    { photo:"/teamphotos/runi.jpeg",    name:"Runi",               role:"UX & Research" },
   ];
   return (
     <div className="scene scene10">
       <div className="scene-eyebrow">Team</div>
-      <h2 className="scene-title-sm">Built by <span className="accent">engineers, for engineers</span></h2>
+      <h2 className="scene-title-sm">Built by <span className="accent">engineers who ship</span></h2>
       <div className="team-cards">
         {team.map((m, i) => (
-          <div key={i} className="team-card" style={{ animationDelay:`${0.15+i*0.18}s` }}>
-            <div className="team-avatar" style={{ background:m.gradient }}>{m.initials}</div>
+          <div key={i} className="team-card" style={{ animationDelay:`${0.15+i*0.22}s` }}>
+            <img src={m.photo} alt={m.name} className="team-photo" />
             <div className="team-name">{m.name}</div>
             <div className="team-role">{m.role}</div>
           </div>
         ))}
       </div>
-      <div className="team-built" style={{ animationDelay:"0.7s" }}>
-        <div className="team-built-text">Built at <strong>Infineon Hackathon 2025</strong> — idea to working product in 24 hours</div>
+      <div className="team-built" style={{ animationDelay:"0.65s" }}>
+        <div className="team-built-text">Built at <strong>Infineon Hackathon 2025</strong> — idea to working MVP</div>
       </div>
     </div>
   );
@@ -453,9 +475,95 @@ const SCENE_LABELS = [
   "Solution", "USP", "Market", "Competition", "Business Model", "Team", "Demo & CTA",
 ];
 
+// ─── Print mode ───────────────────────────────────────────────────────────────
+function PrintDeck() {
+  return (
+    <div className="print-root">
+      <style>{CSS}</style>
+      <style>{`
+        @page { size: 1280px 720px; margin: 0; }
+        html, body { margin: 0; padding: 0; background: #0a0f1e; }
+        .print-root { display: flex; flex-direction: column; align-items: center; gap: 0; }
+        /* Screen: scale 1280×720 to fit viewport width */
+        .print-outer {
+          width: 100vw;
+          height: calc(100vw * 720 / 1280);
+          position: relative; overflow: hidden;
+        }
+        .print-slide {
+          width: 1280px; height: 720px;
+          position: absolute; top: 0; left: 0;
+          transform-origin: top left;
+          transform: scale(calc(100vw / 1280));
+          background: linear-gradient(120deg,#0a2580 0%,#1a4fad 38%,#5a8a45 65%,#c4922a 100%);
+          overflow: hidden;
+          color: #fff; font-family: 'Outfit', sans-serif;
+        }
+        .print-slide .scene { width: 1280px; height: 720px; flex-shrink: 0; }
+        .print-slide * {
+          animation: none !important; opacity: 1 !important;
+          transition: none !important;
+        }
+        /* Only kill transform on non-lottie elements — keep layout transforms */
+        .print-slide .pitch-fwd, .print-slide .pitch-back { transform: none !important; }
+        .print-slide::before {
+          content:''; position:absolute; inset:0;
+          background-image: linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);
+          background-size: 60px 60px; pointer-events:none; z-index:0;
+        }
+        .print-slide-label {
+          position: absolute; top: 20px; left: 28px; z-index: 10;
+          font-size: 11px; font-weight: 600; letter-spacing:.16em;
+          text-transform: uppercase; color: rgba(255,255,255,0.45);
+        }
+        .print-slide-num {
+          position: absolute; top: 20px; right: 28px; z-index: 10;
+          font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.45);
+        }
+        /* Print: remove scaling, each slide is exactly one page */
+        @media print {
+          html, body { background: white; }
+          .print-outer {
+            width: 1280px; height: 720px;
+            page-break-after: always; break-after: page;
+            page-break-inside: avoid; break-inside: avoid;
+          }
+          .print-slide { transform: none; position: relative; }
+          .print-btn { display: none !important; }
+        }
+        .print-btn {
+          position: fixed; bottom: 28px; right: 28px; z-index: 999;
+          background: #fff; color: #0a2580;
+          border: none; border-radius: 10px; padding: 12px 28px;
+          font-size: 15px; font-weight: 700; cursor: pointer;
+          font-family: 'Outfit', sans-serif; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .print-btn:hover { background: #eef; }
+      `}</style>
+      <button className="print-btn" onClick={() => window.print()}>
+        Save as PDF
+      </button>
+      {SCENES.map((SceneComp, i) => (
+        <div key={i} className="print-outer">
+          <div className="print-slide">
+            <div className="print-slide-label">{SCENE_LABELS[i]}</div>
+            <div className="print-slide-num">{i + 1} / {SCENES.length}</div>
+            <SceneComp />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main deck ────────────────────────────────────────────────────────────────
 function PitchDeck() {
+  const [isPrint, setIsPrint] = useState(false);
   const [scene, setScene] = useState(0);
+
+  useEffect(() => {
+    setIsPrint(new URLSearchParams(window.location.search).has('print'));
+  }, []);
   const [dir, setDir] = useState<"fwd" | "back">("fwd");
   const sceneRef = useRef(0);
 
@@ -480,6 +588,8 @@ function PitchDeck() {
     const half = window.innerWidth / 2;
     go(e.clientX > half ? sceneRef.current + 1 : sceneRef.current - 1);
   };
+
+  if (isPrint) return <PrintDeck />;
 
   const SceneComponent = SCENES[scene];
 
@@ -591,43 +701,56 @@ const CSS = `
 .s2-stat-l{font-size:12px;color:var(--muted);line-height:1.4;}
 
 /* ── Scene 3 ── */
-.s3-experts{display:flex;align-items:center;gap:0;width:100%;max-width:880px;justify-content:center;}
-.s3-expert-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;flex:1;position:relative;min-height:180px;padding-top:50px;animation:fade-up 0.4s both;}
-.s3-pings{position:absolute;top:0;left:0;right:0;height:50px;overflow:hidden;}
-.s3-ping{position:absolute;font-size:18px;animation:ping-fall 1s ease-in infinite;}
-.s3-bubble-expert{background:var(--card);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:12px 12px 12px 4px;padding:11px 16px;font-size:14px;color:var(--muted);text-align:center;line-height:1.5;animation:pop-in 0.35s both;}
-.s3-divider{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 20px;opacity:0.35;}
-.s3-div-line{width:1px;height:60px;background:rgba(255,255,255,0.25);}
-.s3-div-icon{font-size:20px;}
+.s3-experts{display:flex;align-items:center;gap:16px;width:100%;max-width:1160px;justify-content:center;}
+.s3-expert-card{flex:1;display:flex;align-items:center;gap:24px;background:rgba(255,255,255,0.13);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1.5px solid rgba(255,255,255,0.32);border-radius:24px;padding:24px 26px;animation:pop-in 0.4s both;box-shadow:0 8px 40px rgba(0,0,0,0.18);}
+.s3-expert-avatar-col{flex-shrink:0;}
+.s3-expert-info-col{display:flex;flex-direction:column;gap:7px;flex:1;}
+.s3-expert-label{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,0.45);}
+.s3-expert-name{font-size:26px;font-weight:800;color:#fff;line-height:1.1;letter-spacing:-.01em;}
+.s3-expert-role{font-size:14px;color:rgba(255,255,255,0.7);font-weight:500;}
+.s3-expert-quote{font-size:15px;color:rgba(255,255,255,0.85);font-style:italic;background:rgba(255,255,255,0.08);border-left:3px solid rgba(255,255,255,0.4);border-radius:0 8px 8px 0;padding:9px 14px;margin-top:4px;line-height:1.5;}
+.s3-pings-inline{display:flex;gap:6px;margin-top:4px;}
+.s3-ping-dot{width:8px;height:8px;border-radius:50%;background:rgba(96,165,250,0.7);animation:pop-in 0.25s both;}
+.s3-vs-divider{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 8px;flex-shrink:0;}
+.s3-vs-line{width:1px;flex:1;background:rgba(255,255,255,0.18);}
+.s3-vs-badge{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,0.35);white-space:nowrap;writing-mode:vertical-rl;text-orientation:mixed;}
 
 /* ── Scene 4 ── */
-.s4-layout{display:flex;align-items:flex-start;gap:0;width:100%;max-width:920px;justify-content:center;}
-.s4-side{flex:1;display:flex;flex-direction:column;align-items:center;gap:12px;}
-.s4-card{animation:fade-up 0.4s both;}
-.s4-stance{font-size:14px;font-weight:800;padding:7px 18px;border-radius:999px;animation:pop-in 0.3s both;}
-.s4-stance.green{background:rgba(255,255,255,0.15);color:#fff;border:1.5px solid rgba(255,255,255,0.4);}
-.s4-stance.red{background:rgba(255,107,107,0.2);color:#ff9f9f;border:1.5px solid rgba(255,107,107,0.4);}
-.s4-team{font-size:13px;color:var(--muted);text-align:center;background:var(--card);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:10px;padding:10px 15px;line-height:1.65;animation:fade-up 0.35s both;}
-.s4-team strong{color:#fff;}
-.s4-wall{display:flex;flex-direction:column;align-items:center;padding:0 16px;gap:10px;}
-.s4-wall-bar{width:3px;height:200px;background:rgba(255,255,255,0.15);border-radius:2px;}
-.s4-wall-icon{font-size:20px;}
-.s4-conflict-badge{background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.3);color:#fff;font-size:12px;font-weight:800;padding:9px 14px;border-radius:10px;text-align:center;line-height:1.5;animation:pop-in 0.3s both;}
+/* Scene 4 — tighter title, wider cards, natural height */
+.scene4{gap:16px;}
+.scene4 .scene-title-sm{font-size:clamp(2rem,3.8vw,3rem);margin-bottom:4px;}
+.s4-cards-row{display:flex;align-items:center;gap:16px;width:100%;max-width:1160px;justify-content:center;}
+.s4-expert-card{flex:1;min-width:0;display:flex;align-items:center;gap:20px;background:rgba(255,255,255,0.13);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1.5px solid rgba(255,255,255,0.32);border-radius:24px;padding:28px 26px;animation:pop-in 0.4s both;box-shadow:0 8px 40px rgba(0,0,0,0.18);}
+.s4-avatar-col{flex-shrink:0;}
+.s4-info-col{display:flex;flex-direction:column;gap:12px;flex:1;min-width:0;}
+.s4-expert-name{font-size:22px;font-weight:800;color:#fff;line-height:1.15;white-space:nowrap;}
+.s4-expert-role{font-size:13px;color:rgba(255,255,255,0.7);font-weight:500;}
+.s4-stance-pill{font-size:13px;font-weight:700;padding:6px 13px;border-radius:999px;animation:pop-in 0.3s both;display:inline-block;white-space:nowrap;}
+.s4-stance-pill.green{background:rgba(255,255,255,0.15);color:#fff;border:1.5px solid rgba(255,255,255,0.4);}
+.s4-stance-pill.red{background:rgba(255,107,107,0.15);color:#ffaaaa;border:1.5px solid rgba(255,107,107,0.45);}
+.s4-team-note{font-size:12px;color:var(--muted);background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:7px 12px;line-height:1.55;animation:fade-up 0.35s both;}
+.s4-team-note strong{color:#fff;}
+.s4-wall{display:flex;flex-direction:column;align-items:center;padding:0 8px;gap:0;flex-shrink:0;align-self:stretch;}
+.s4-wall-line{width:2px;flex:1;background:linear-gradient(to bottom,transparent,rgba(245,158,11,0.5),transparent);}
+.s4-conflict-badge{background:rgba(245,158,11,0.18);border:2px solid rgba(245,158,11,0.7);color:#fff;border-radius:20px;text-align:center;padding:18px 16px;display:flex;flex-direction:column;align-items:center;gap:6px;animation:pop-in 0.35s both;box-shadow:0 0 40px rgba(245,158,11,0.25),inset 0 1px 0 rgba(255,255,255,0.1);min-width:120px;}
+.s4-conflict-icon{width:48px;height:48px;border-radius:50%;background:rgba(245,158,11,0.9);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#fff;line-height:1;box-shadow:0 0 20px rgba(245,158,11,0.5);}
+.s4-conflict-title{font-size:18px;font-weight:800;color:#fbbf24;letter-spacing:.02em;}
+.s4-conflict-sub{font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);text-align:center;line-height:1.4;white-space:nowrap;}
 
 /* ── Scene 5 — Solution ── */
 .s5-header{display:flex;align-items:center;gap:22px;animation:fade-up 0.4s 0.05s both;}
-.s5-logo{width:64px;height:64px;border-radius:16px;background:rgba(255,255,255,0.95);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#0a2580;animation:pop-in 0.4s both,pulse-glow-w 2.5s 0.5s ease-in-out infinite;flex-shrink:0;font-family:var(--font);}
+.s5-logo-img{width:64px;height:64px;border-radius:16px;object-fit:cover;animation:pop-in 0.4s both,pulse-glow-w 2.5s 0.5s ease-in-out infinite;flex-shrink:0;box-shadow:0 4px 20px rgba(0,0,0,0.3);}
 .s5-title{font-size:clamp(2rem,4vw,3.2rem);font-weight:800;letter-spacing:-.02em;color:#fff;}
 .s5-tagline{font-size:15px;color:var(--muted);margin-top:5px;}
 .s5-connectors-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;animation:fade-up 0.4s 0.2s both;}
 .s5-chip{display:flex;align-items:center;gap:8px;background:var(--card);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:999px;padding:6px 16px 6px 6px;font-size:14px;font-weight:700;color:#fff;animation:pop-in 0.3s both;}
 .s5-chip-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;}
 .s5-arrow-inline{font-size:22px;color:rgba(255,255,255,0.7);font-weight:700;animation:fade-in 0.3s both;}
-.s5-db-node{width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,0.92);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#0a2580;animation:pop-in 0.35s both,pulse-glow-w 2.5s 1s ease-in-out infinite;}
+.s5-db-node{width:52px;height:52px;border-radius:14px;object-fit:cover;animation:pop-in 0.35s both,pulse-glow-w 2.5s 1s ease-in-out infinite;box-shadow:0 4px 20px rgba(0,0,0,0.3);}
 .s5-brief-chip{background:var(--card);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.28);border-radius:12px;padding:10px 18px;font-size:14px;font-weight:700;color:#fff;animation:pop-in 0.35s both;}
 .s5-steps{display:flex;gap:16px;width:100%;max-width:820px;}
 .s5-step{flex:1;background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:18px;padding:20px 22px;display:flex;flex-direction:column;gap:8px;animation:fade-up 0.35s both;}
-.s5-step-n{font-size:30px;font-weight:900;color:rgba(255,255,255,0.2);line-height:1;}
+.s5-step-n{font-size:30px;font-weight:900;color:rgba(255,255,255,0.75);line-height:1;}
 .s5-step-label{font-size:16px;font-weight:800;color:#fff;}
 .s5-step-desc{font-size:13px;color:var(--muted);line-height:1.55;}
 
@@ -665,7 +788,7 @@ const CSS = `
 .orbit-comp-name{background:rgba(0,0,0,0.35);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;color:rgba(255,255,255,0.55);text-align:center;}
 .orbit-comp-miss{font-size:11px;color:#ff9f9f;font-weight:700;background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.25);border-radius:6px;padding:3px 10px;white-space:nowrap;}
 .orbit-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:2;}
-.orbit-db-logo{width:96px;height:96px;border-radius:24px;background:rgba(255,255,255,0.95);display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900;color:#0a2580;box-shadow:0 0 50px rgba(255,255,255,0.3),0 0 100px rgba(255,255,255,0.1);animation:pulse-glow-w 2s ease-in-out infinite;}
+.orbit-db-logo{width:96px;height:96px;border-radius:24px;object-fit:cover;box-shadow:0 0 50px rgba(255,255,255,0.3),0 0 100px rgba(255,255,255,0.1);animation:pulse-glow-w 2s ease-in-out infinite;}
 .orbit-db-name{font-size:15px;font-weight:800;color:#fff;white-space:nowrap;}
 .orbit-db-checks{display:flex;flex-direction:column;align-items:center;gap:4px;}
 .orbit-db-checks span{font-size:12px;font-weight:700;color:#fff;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:999px;padding:3px 13px;white-space:nowrap;}
@@ -684,13 +807,13 @@ const CSS = `
 .bm-note{display:flex;gap:10px;align-items:center;background:rgba(255,255,255,0.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:13px 18px;font-size:14px;color:#fff;max-width:840px;animation:fade-up 0.35s both;}
 
 /* ── Scene 10 — Team ── */
-.team-cards{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;}
-.team-card{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:22px;padding:30px 26px;display:flex;flex-direction:column;align-items:center;gap:12px;min-width:210px;animation:pop-in 0.35s both;}
-.team-avatar{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;animation:pulse-glow-w 3s ease-in-out infinite;}
-.team-name{font-size:16px;font-weight:800;color:#fff;text-align:center;font-family:var(--font);}
-.team-role{font-size:13px;color:var(--muted);text-align:center;}
-.team-built{background:rgba(255,255,255,0.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);border-radius:14px;padding:15px 26px;max-width:620px;animation:fade-up 0.35s both;}
-.team-built-text{font-size:15px;color:#fff;text-align:center;line-height:1.6;}
+.team-cards{display:flex;gap:32px;flex-wrap:wrap;justify-content:center;}
+.team-card{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:28px;padding:36px 40px;display:flex;flex-direction:column;align-items:center;gap:16px;min-width:280px;animation:pop-in 0.35s both;box-shadow:0 8px 40px rgba(0,0,0,0.2);}
+.team-photo{width:140px;height:140px;border-radius:50%;object-fit:cover;object-position:top;border:3px solid rgba(255,255,255,0.35);box-shadow:0 0 40px rgba(255,255,255,0.15);}
+.team-name{font-size:22px;font-weight:800;color:#fff;text-align:center;font-family:var(--font);}
+.team-role{font-size:15px;color:var(--muted);text-align:center;}
+.team-built{background:rgba(255,255,255,0.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);border-radius:14px;padding:16px 32px;max-width:620px;animation:fade-up 0.35s both;}
+.team-built-text{font-size:16px;color:#fff;text-align:center;line-height:1.6;}
 
 /* ── Scene 11 — CTA ── */
 .scene11{padding:0;overflow:hidden;position:relative;}
