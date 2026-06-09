@@ -66,10 +66,10 @@ function Scene2() {
   ];
   return (
     <div className="scene scene2">
-      <div className="scene-eyebrow">Persona 1 — The PM</div>
+      <div className="scene-eyebrow">Meet Sarah — The Manager</div>
       <div className="s2-layout">
         <div className="s2-left">
-          <LottieAvatar src={LOTTIE_CONFUSED} initials="SK" gradient="linear-gradient(135deg,#1e3a8a,#3b82f6)" size={300} />
+          <LottieAvatar src={LOTTIE_CONFUSED} initials="SK" gradient="linear-gradient(135deg,#1e3a8a,#3b82f6)" size={360} />
           <div className="persona-card" style={{ animationDelay: "0.1s" }}>
             <div className="persona-info">
               <div className="persona-name">Sarah Klein</div>
@@ -106,7 +106,7 @@ function Scene2() {
 function Scene3() {
   return (
     <div className="scene scene3">
-      <div className="scene-eyebrow">Persona 2 — The Experts</div>
+      <div className="scene-eyebrow">Meet the Experts</div>
       <h2 className="scene-title-sm">The experts exist.<br /><span className="accent">But they're invisible to Sarah.</span></h2>
       <div className="s3-experts">
         <div className="s3-expert-card" style={{ animationDelay: "0.15s" }}>
@@ -288,7 +288,7 @@ function Scene7() {
   return (
     <div className="scene scene7">
       <div className="scene-eyebrow">Market</div>
-      <h2 className="scene-title-sm">Starting in EV. <span className="accent">Built for every industry.</span></h2>
+      <h2 className="scene-title-sm">Built for every industry</h2>
       <div className="s7-stats">
         {stats.map((s, i) => (
           <div key={i} className="s7-stat-card" style={{ animationDelay:`${0.15+i*0.18}s` }}>
@@ -363,7 +363,7 @@ function Scene9() {
       highlight: false,
     },
     {
-      name: "Growth", price: "€10", sub: "/seat/month",
+      name: "Growth", price: "€20", sub: "/seat/month",
       features: ["All 6 connectors", "Conflict detection", "Unlimited decisions", "Team knowledge base"],
       highlight: true,
     },
@@ -388,9 +388,6 @@ function Scene9() {
             </ul>
           </div>
         ))}
-      </div>
-      <div className="bm-note" style={{ animationDelay:"0.8s" }}>
-        Land with one EV team. Expand org-wide as decisions compound.
       </div>
     </div>
   );
@@ -649,10 +646,10 @@ const CSS = `
 .glass{background:var(--card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:16px;}
 
 /* ── Persona card ── */
-.persona-card{display:flex;align-items:center;gap:16px;background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:16px;padding:16px 22px;animation:pop-in 0.35s both;}
-.persona-name{font-size:19px;font-weight:800;color:#fff;font-family:var(--font);}
-.persona-role{font-size:14px;color:var(--muted);margin-top:3px;}
-.persona-company{font-size:13px;color:rgba(255,255,255,0.8);margin-top:5px;font-weight:600;}
+.persona-card{display:flex;align-items:center;gap:16px;background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:16px;padding:20px 26px;animation:pop-in 0.35s both;}
+.persona-name{font-size:24px;font-weight:800;color:#fff;font-family:var(--font);}
+.persona-role{font-size:16px;color:var(--muted);margin-top:4px;}
+.persona-company{font-size:15px;color:rgba(255,255,255,0.8);margin-top:6px;font-weight:600;}
 
 /* ── Scene 1 ── */
 .s1-cards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;width:100%;max-width:1000px;}
@@ -662,19 +659,19 @@ const CSS = `
 .s1-pain{font-size:clamp(0.8rem,1.2vw,0.95rem);color:rgba(255,255,255,0.55);font-weight:400;line-height:1.4;}
 
 /* ── Scene 2 ── */
-.s2-layout{display:flex;gap:48px;align-items:center;justify-content:center;width:100%;max-width:920px;}
-.s2-left{display:flex;flex-direction:column;align-items:center;gap:14px;}
-.s2-right{display:flex;flex-direction:column;gap:16px;}
-.s2-bubble{background:rgba(255,255,255,0.12);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.28);border-radius:16px 16px 16px 4px;padding:16px 22px;font-size:16px;font-weight:600;color:#fff;max-width:380px;text-align:center;line-height:1.55;animation:pop-in 0.35s both;}
-.s2-tools{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
-.s2-tool{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--card);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:12px;padding:12px 16px;animation:pop-in 0.35s both,shake 0.6s 1.2s ease-in-out;position:relative;}
-.s2-tool-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;}
-.s2-tool-name{font-size:12px;color:var(--muted);font-weight:600;}
-.s2-badge{position:absolute;top:-8px;right:-8px;background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:2px 7px;min-width:24px;text-align:center;animation:pop-in 0.3s 1.0s both;}
-.s2-stat-row{display:flex;gap:14px;animation:fade-up 0.35s both;}
-.s2-stat{background:var(--card);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:12px;padding:13px 18px;display:flex;flex-direction:column;gap:4px;flex:1;}
-.s2-stat-n{font-size:24px;font-weight:800;background:linear-gradient(135deg,#f8c94b,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.s2-stat-l{font-size:12px;color:var(--muted);line-height:1.4;}
+.s2-layout{display:flex;gap:56px;align-items:center;justify-content:center;width:100%;max-width:1140px;}
+.s2-left{display:flex;flex-direction:column;align-items:center;gap:16px;}
+.s2-right{display:flex;flex-direction:column;gap:20px;flex:1;}
+.s2-bubble{background:rgba(255,255,255,0.12);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.28);border-radius:16px 16px 16px 4px;padding:22px 30px;font-size:20px;font-weight:600;color:#fff;max-width:560px;text-align:center;line-height:1.55;animation:pop-in 0.35s both;}
+.s2-tools{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+.s2-tool{display:flex;flex-direction:column;align-items:center;gap:8px;background:var(--card);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:14px;padding:16px 20px;animation:pop-in 0.35s both,shake 0.6s 1.2s ease-in-out;position:relative;}
+.s2-tool-icon{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;}
+.s2-tool-name{font-size:14px;color:var(--muted);font-weight:600;}
+.s2-badge{position:absolute;top:-8px;right:-8px;background:var(--red);color:#fff;font-size:11px;font-weight:800;border-radius:999px;padding:3px 8px;min-width:24px;text-align:center;animation:pop-in 0.3s 1.0s both;}
+.s2-stat-row{display:flex;gap:16px;animation:fade-up 0.35s both;}
+.s2-stat{background:var(--card);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:14px;padding:18px 22px;display:flex;flex-direction:column;gap:6px;flex:1;}
+.s2-stat-n{font-size:32px;font-weight:800;background:linear-gradient(135deg,#f8c94b,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.s2-stat-l{font-size:15px;color:var(--muted);line-height:1.4;}
 
 /* ── Scene 3 ── */
 .s3-experts{display:flex;align-items:center;gap:16px;width:100%;max-width:1160px;justify-content:center;}
