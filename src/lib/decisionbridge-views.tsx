@@ -10,6 +10,7 @@ import { addPmDecision, markDecisionSeen, usePmDecisions, type PmDecision } from
 import { addProject, useProjects, type Project } from "@/lib/project-store";
 import { usePeople, setDemoEmail, initPeopleStore, resolveEmail } from "@/lib/people-store";
 import { searchGmail, buildGmailQuery, type GmailMessage } from "@/lib/search-gmail.functions";
+import { getDemoGmailMessages } from "@/lib/demo-gmail-fixtures";
 import {
   adminPeople,
   categoryMap,
@@ -520,15 +521,23 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
   const gmailConn = connections["gmail"];
   const gmailToken = gmailConn?.status === "connected" ? (gmailConn as Extract<typeof gmailConn, { id: "gmail"; status: "connected" }>).token : "";
 
+  const [gmailDemoMode, setGmailDemoMode] = useState(false);
+
   const fetchGmailMessages = async () => {
-    if (!gmailToken) {
-      setGmailError("Connect Gmail first — go to the Connections tab and add your OAuth token.");
-      return;
-    }
     setGmailSearching(true);
     setGmailMessages([]);
     setGmailError("");
+    setGmailDemoMode(false);
     setDraft(null);
+    if (!gmailToken) {
+      // Demo mode — use local fixtures, no API call needed
+      await new Promise((r) => setTimeout(r, 700)); // brief fake loading
+      const msgs = getDemoGmailMessages(knowledgeArea);
+      setGmailMessages(msgs);
+      setGmailDemoMode(true);
+      setGmailSearching(false);
+      return;
+    }
     try {
       const query = buildGmailQuery(knowledgeArea, resolvedEmail);
       const msgs = await runSearchGmail({ data: { token: gmailToken, query, maxResults: 5 } });
@@ -713,17 +722,17 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
                       <strong>{c.name}</strong>
                       {gmailToken
                         ? <span className="gmail-expert-email">● {resolvedEmail || "email not set"}</span>
-                        : <span className="gmail-expert-email" style={{ color: "var(--rose)" }}>Not connected — add token in Connections tab</span>
+                        : <span className="gmail-expert-email" style={{ color: "var(--amber, #b45309)", fontWeight: 600 }}></span>
                       }
                     </div>
-                    {gmailToken && <div className="connector-dot connected" />}
+                    <div className={`connector-dot ${gmailToken ? "connected" : "demo"}`} />
                   </div>
 
                   <button
                     className="action-btn secondary"
                     style={{ width: "100%", marginTop: 10 }}
                     onClick={fetchGmailMessages}
-                    disabled={gmailSearching || !!gmailExtracting || !gmailToken}
+                    disabled={gmailSearching || !!gmailExtracting}
                   >
                     {gmailSearching ? "Searching Gmail…" : `Search emails about "${knowledgeArea}"`}
                   </button>
@@ -732,7 +741,9 @@ function ExpertCapturePanel({ expertName }: { expertName: string }) {
 
                   {gmailMessages.length > 0 && (
                     <div className="gmail-messages">
-                      <p className="gmail-found-label">Found {gmailMessages.length} email{gmailMessages.length !== 1 ? "s" : ""} — select one to extract</p>
+                      <p className="gmail-found-label">
+                        {gmailDemoMode ? "⚡ Demo · " : ""}Found {gmailMessages.length} email{gmailMessages.length !== 1 ? "s" : ""} — select one to extract
+                      </p>
                       {gmailMessages.map((msg) => (
                         <div key={msg.id} className="gmail-msg-card">
                           <div className="gmail-msg-meta">
