@@ -359,6 +359,7 @@ Click **View full decision brief →**
 2. The **Decision Story** flow below the banner
 3. The **brief grid** with Risk, Missing information, Recommendation, and Experts consulted cards
 4. An **Evidence traceability** table
+5. At the very bottom of the brief: a **"Your call"** verdict panel
 
 > **This is the key demo moment:** Judges can see that the system doesn't blindly aggregate all expert input — it detects when experts disagree and surfaces that disagreement transparently in the brief.
 
@@ -372,20 +373,38 @@ Click **Export PDF**.
 
 ---
 
-### 4.7 — Decision log with conflict event
+### 4.7 — PM verdict: agree or disagree
+
+Scroll to the bottom of the decision brief. A panel shows:
+
+> **"Your call — do you agree with this recommendation?"**
+
+1. In the comment textarea, type: `Proceeding with conditional approval — Thomas to confirm HTOL by EOW`
+2. Click **✓ Agree — Proceed**
+
+**Expected:**
+- The buttons are replaced by a **green "✓ Decision approved"** badge
+- A message confirms: *"X expert(s) (Dr. Lukas Müller, Thomas Richter, …) have been notified"*
+
+> **Report if:** Buttons do not react, badge does not appear, or no expert count is shown.
+
+---
+
+### 4.8 — Decision log with conflict and verdict events
 
 Click the **Decision log** tab at the top.
 
 **Expected:** A vertical timeline appears showing all events in chronological order:
 - Green dots: knowledge entries (Gmail, Jira × 2, Slack, Teams)
 - **Red dot: ⚠ Conflict detected** — shows Thomas Richter "✗ Against" vs Dr. Lukas Müller "✓ Supports" inline
-- Stats row at the top showing knowledge entries, tickets answered, and a **red conflict counter** (e.g. "1 conflict detected")
+- **Green dot: ✓ PM approved** — shows the decision question, readiness score (e.g. 62%), your comment, and the experts consulted
+- Stats row at the top: knowledge entries, tickets answered, **red conflict counter**, and **green "approved" counter**
 
-> **Report if:** No red dot appears, or conflict counter is missing from the stats row.
+> **Report if:** No red dot appears, conflict counter is missing, PM approved event is absent, or the approved stat is not shown.
 
 ---
 
-### 4.8 — Question 2: Knowledge gap
+### 4.9 — Question 2: Knowledge gap
 
 Click the **Ask a question** tab. Type:
 
@@ -408,7 +427,7 @@ Click **Calculate readiness**.
 
 ---
 
-### 4.9 — Send expert tickets
+### 4.10 — Send expert tickets
 
 Click **Show experts and prepare tickets**.
 
@@ -457,7 +476,35 @@ Click **Send answer & save to knowledge base**.
 
 ---
 
-### 5.3 — Re-run readiness after expert answer
+### 5.3 — Expert: check PM decision notification
+
+Still in Expert role as **Dr. Lukas Müller**.
+
+**Expected:** The **My tickets** tab badge shows a number higher than just open tickets — it includes unread PM decisions.
+
+Click **My tickets**. At the top of the panel, a **PM Decisions** section appears with a *"1 new"* badge.
+
+The notification card shows:
+- **✓ Approved** verdict badge (green)
+- Decision topic: *"Supplier approval"* · Project: *Power Module X*
+- The original question the PM asked
+- Readiness score at decision time
+- The PM's note: *"Proceeding with conditional approval — Thomas to confirm HTOL by EOW"*
+- A **Mark as read** button
+
+Click **Mark as read**.
+
+**Expected:** The *"1 new"* badge disappears. The card loses its green tint. The tab badge count decreases.
+
+Now switch to **Thomas Richter · Quality Expert** → My tickets.
+
+**Expected:** The same PM decision notification appears for Thomas (he was also consulted). Both experts receive the verdict regardless of their stance.
+
+> **Report if:** PM Decisions section is absent, notification does not appear for one of the experts, or Mark as read does not clear the badge.
+
+---
+
+### 5.4 — Re-run readiness after expert answer
 
 Switch back to the **Project Manager** role.
 
@@ -469,7 +516,7 @@ Click **Re-run readiness with new answers**.
 
 ---
 
-### 5.4 — Verify knowledge base updated
+### 5.5 — Verify knowledge base updated
 
 Switch back to Expert role → Dr. Lukas Müller → **Capture knowledge** tab.
 
@@ -579,17 +626,20 @@ For each issue found, note:
 | PM question + Language Bridge | 4.2–4.4 | 60s |
 | AI translation + conflict brief | 4.5–4.6 | 90s |
 | PDF export | 4.6 | 15s |
-| Decision log with conflict event | 4.7 | 30s |
-| Knowledge gap + tickets | 4.8–4.9 | 45s |
-| Expert answers ticket | 5.1–5.3 | 45s |
+| PM verdict (agree/disagree) | 4.7 | 20s |
+| Decision log with conflict + verdict | 4.8 | 30s |
+| Knowledge gap + tickets | 4.9–4.10 | 45s |
+| Expert answers ticket + PM notification | 5.1–5.3 | 60s |
 | Connections architecture story | 6.1–6.2 | 45s |
-| **Total** | | **~8 min** |
+| **Total** | | **~9 min** |
 
-**For a 5-minute slot:** Run 1.2, 3.3, 3.7, 4.2–4.6, 4.7 (conflict log only). Skip Jira/Slack/Meeting capture, ticket flow, and Connections.
+**For a 5-minute slot:** Run 1.2, 3.3, 3.7, 4.2–4.8. Skip Jira/Slack/Meeting capture, ticket flow, and Connections.
 
 **Key narrative arc for judges:**
 1. Expert captures "approve" findings from Gmail (live data)
 2. A second expert raises a blocking concern — system detects the conflict automatically
 3. PM sees the conflict surfaced in the brief, not buried in raw data
 4. Readiness score is visibly reduced by the disagreement
-5. Export PDF shows the conflict in a structured, auditable format
+5. PM makes the call — approve or reject — with a note for the experts
+6. All consulted experts are notified with the verdict, score, and PM's rationale
+7. The full decision trail (knowledge → conflict → verdict) is auditable in the Decision log
