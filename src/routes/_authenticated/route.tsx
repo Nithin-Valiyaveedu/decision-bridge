@@ -37,7 +37,7 @@ function AuthedLayout() {
   return (
     <div className="db-root">
       <header className="app-nav">
-        <strong>Collaborative Insight</strong>
+        <strong>DecisionBridge</strong>
         <nav>
           {role === "admin" && <Link to="/admin" activeProps={{ className: "active" }}>Admin</Link>}
           {role === "expert" && <Link to="/expert" activeProps={{ className: "active" }}>Expert workspace</Link>}

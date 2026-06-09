@@ -1,4 +1,4 @@
-# Demo & QA Script — Collaborative Insight
+# Demo & QA Script — DecisionBridge
 
 This document is written for a QA tester. Follow every step in order. For each step, the **Expected result** tells you what should happen. If it does not match, note the step number and describe what you saw instead.
 
