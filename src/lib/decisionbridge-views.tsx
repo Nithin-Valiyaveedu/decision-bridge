@@ -1659,12 +1659,12 @@ type PmVerdictPanelProps = {
 };
 
 function PmDecisionVerdictPanel({ flow, question, projectName, projectId }: PmVerdictPanelProps) {
-  const [verdict, setVerdict] = useState<"approved" | "rejected" | null>(null);
+  const allDecisions = usePmDecisions();
+  const existing = allDecisions.find((d) => d.question === question && d.projectId === projectId);
+
   const [comment, setComment] = useState("");
-  const [submitted, setSubmitted] = useState(false);
 
   const submit = (v: "approved" | "rejected") => {
-    setVerdict(v);
     addPmDecision({
       verdict: v,
       topic: flow.foundTitle,
@@ -1676,15 +1676,14 @@ function PmDecisionVerdictPanel({ flow, question, projectName, projectId }: PmVe
       projectId,
       projectName,
     });
-    setSubmitted(true);
   };
 
-  if (submitted && verdict) {
+  if (existing) {
     const count = flow.expertsConsulted.length;
     return (
       <div className="verdict-done">
-        <span className={`verdict-badge ${verdict}`}>
-          {verdict === "approved" ? "✓ Decision approved" : "✗ Decision rejected"}
+        <span className={`verdict-badge ${existing.verdict}`}>
+          {existing.verdict === "approved" ? "✓ Decision approved" : "✗ Decision rejected"}
         </span>
         <p className="muted">
           {count > 0
@@ -1935,7 +1934,7 @@ export function PmChatView() {
             "ai",
             <>
               <div className="ticket-created">
-                {persisted.length} expert ticket(s) created and delivered to their inboxes. Switch to the Expert view to answer them.
+                {persisted.length} expert ticket(s) created and delivered to their inboxes.
               </div>
               <div className="block">
                 <div className="two-col">
