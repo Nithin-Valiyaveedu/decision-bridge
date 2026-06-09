@@ -6,6 +6,7 @@ import { translateDecision, type TranslationResult } from "@/lib/translate-decis
 import { classifyQuestion, type ClassifyResult } from "@/lib/classify-question.functions";
 import { addKnowledge, useKnowledge, type Knowledge } from "@/lib/knowledge-store";
 import { addTicket, answerTicket, useTickets, type Ticket } from "@/lib/ticket-store";
+import { addPmDecision, markDecisionSeen, usePmDecisions, type PmDecision } from "@/lib/pm-decision-store";
 import { addProject, useProjects, type Project } from "@/lib/project-store";
 import { usePeople, setDemoEmail, initPeopleStore, resolveEmail } from "@/lib/people-store";
 import { searchGmail, buildGmailQuery, type GmailMessage } from "@/lib/search-gmail.functions";
@@ -425,8 +426,14 @@ export function ExpertView() {
   const [expertName, setExpertName] = useState(EXPERTS[0]);
   const [tab, setTab] = useState<"capture" | "tickets" | "connections">("capture");
   const tickets = useTickets();
+  const allDecisions = usePmDecisions();
   const myName = expertName.split(" · ")[0];
   const myOpen = tickets.filter((t) => t.assignedTo === myName && t.status === "open").length;
+  const myUnreadDecisions = allDecisions.filter(
+    (d) =>
+      !d.seenBy.includes(myName) &&
+      (d.expertsConsulted.length === 0 || d.expertsConsulted.some((e) => e.split(" · ")[0] === myName)),
+  ).length;
   const connections = useConnections();
   const connectedCount = Object.values(connections).filter((c) => c?.status === "connected").length;
 
@@ -444,7 +451,7 @@ export function ExpertView() {
             Capture knowledge
           </button>
           <button className={`expert-tab ${tab === "tickets" ? "active" : ""}`} onClick={() => setTab("tickets")}>
-            My tickets{myOpen > 0 && <span className="tab-badge">{myOpen}</span>}
+            My tickets{(myOpen + myUnreadDecisions) > 0 && <span className="tab-badge">{myOpen + myUnreadDecisions}</span>}
           </button>
           <button className={`expert-tab ${tab === "connections" ? "active" : ""}`} onClick={() => setTab("connections")}>
             Connections{connectedCount > 0 && <span className="tab-badge connected">{connectedCount}</span>}
@@ -1294,12 +1301,18 @@ function ConnectionsPanel() {
 
 function ExpertTicketsPanel({ expertName, myName }: { expertName: string; myName: string }) {
   const tickets = useTickets();
+  const allDecisions = usePmDecisions();
   const mine = tickets.filter((t) => t.assignedTo === myName);
   const open = mine.filter((t) => t.status === "open");
   const answered = mine.filter((t) => t.status === "answered");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [confidences, setConfidences] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
+
+  const myDecisions = allDecisions.filter(
+    (d) => d.expertsConsulted.length === 0 || d.expertsConsulted.some((e) => e.split(" · ")[0] === myName),
+  );
+  const unreadDecisions = myDecisions.filter((d) => !d.seenBy.includes(myName));
 
   const send = (t: Ticket) => {
     const answer = (drafts[t.id] || "").trim();
@@ -1325,6 +1338,58 @@ function ExpertTicketsPanel({ expertName, myName }: { expertName: string; myName
         <p className="muted">
           PMs route questions here when no expert knowledge exists yet. Your answer is delivered back to the PM and saved to the knowledge base for the next decision.
         </p>
+
+        {myDecisions.length > 0 && (
+          <div className="pm-decisions-section">
+            <div className="pm-decisions-header">
+              <span className="pm-decisions-title">PM Decisions</span>
+              {unreadDecisions.length > 0 && (
+                <span className="pm-decisions-badge">{unreadDecisions.length} new</span>
+              )}
+            </div>
+            {myDecisions.map((d) => {
+              const isUnread = !d.seenBy.includes(myName);
+              return (
+                <div key={d.id} className={`pm-notification ${d.verdict} ${isUnread ? "unread" : ""}`}>
+                  <div className="pm-notif-top">
+                    <span className={`pm-notif-verdict ${d.verdict}`}>
+                      {d.verdict === "approved" ? "✓ Approved" : "✗ Rejected"}
+                    </span>
+                    <span className="pm-notif-time">{new Date(d.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="pm-notif-topic">
+                    <strong>{d.topic}</strong>
+                    {d.projectName && <span className="pm-notif-project"> · {d.projectName}</span>}
+                  </div>
+                  <p className="pm-notif-question muted">"{d.question}"</p>
+                  <div className="pm-notif-score-row">
+                    <span className="pm-notif-score-label">Readiness score at decision time:</span>
+                    <span className="pm-notif-score-val">{d.score}%</span>
+                  </div>
+                  <div className="pm-notif-reco">
+                    <span className="pm-notif-reco-label">Recommendation was:</span>
+                    <span> {d.recommendation}</span>
+                  </div>
+                  {d.comment && (
+                    <div className="pm-notif-comment">
+                      <span className="pm-notif-comment-label">PM note:</span>
+                      <p>"{d.comment}"</p>
+                    </div>
+                  )}
+                  {isUnread && (
+                    <button
+                      className="pm-notif-ack"
+                      onClick={() => markDecisionSeen(d.id, myName)}
+                    >
+                      Mark as read
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {notice && <div className="notice">{notice}</div>}
 
         <h3>Open · {open.length}</h3>
@@ -1586,6 +1651,75 @@ const STARTER_QUESTIONS = [
   "Can we change the packaging material on Product X?",
 ];
 
+type PmVerdictPanelProps = {
+  flow: Flow;
+  question: string;
+  projectName: string;
+  projectId?: string;
+};
+
+function PmDecisionVerdictPanel({ flow, question, projectName, projectId }: PmVerdictPanelProps) {
+  const [verdict, setVerdict] = useState<"approved" | "rejected" | null>(null);
+  const [comment, setComment] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const submit = (v: "approved" | "rejected") => {
+    setVerdict(v);
+    addPmDecision({
+      verdict: v,
+      topic: flow.foundTitle,
+      question,
+      score: flow.score,
+      recommendation: flow.recommendation,
+      comment: comment.trim(),
+      expertsConsulted: flow.expertsConsulted,
+      projectId,
+      projectName,
+    });
+    setSubmitted(true);
+  };
+
+  if (submitted && verdict) {
+    const count = flow.expertsConsulted.length;
+    return (
+      <div className="verdict-done">
+        <span className={`verdict-badge ${verdict}`}>
+          {verdict === "approved" ? "✓ Decision approved" : "✗ Decision rejected"}
+        </span>
+        <p className="muted">
+          {count > 0
+            ? `${count} expert${count > 1 ? "s" : ""} (${flow.expertsConsulted.map((e) => e.split(" · ")[0]).join(", ")}) ${count > 1 ? "have" : "has"} been notified.`
+            : "No experts were consulted for this decision."}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="verdict-panel">
+      <div className="verdict-header">
+        <span className="verdict-label">Your call — do you agree with this recommendation?</span>
+        <span className="verdict-sub">Your decision will be logged and all consulted experts will be notified.</span>
+      </div>
+      <textarea
+        className="verdict-comment"
+        placeholder="Optional: add a note for the experts (e.g. rationale, conditions, next steps)…"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        rows={2}
+      />
+      <div className="verdict-btns">
+        <button className="verdict-approve-btn" onClick={() => submit("approved")}>
+          ✓ Agree — Proceed
+        </button>
+        <button className="verdict-reject-btn" onClick={() => submit("rejected")}>
+          ✗ Disagree — Hold
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function PmChatView() {
   const kb = useKnowledge();
   const kbRef = useRef(kb);
@@ -1779,6 +1913,12 @@ export function PmChatView() {
           <button className="action-btn secondary" onClick={() => exportBrief(f)}>Export PDF</button>
           <button className="action-btn" onClick={() => showExperts(f)}>Show experts to contact</button>
         </div>
+        <PmDecisionVerdictPanel
+          flow={f}
+          question={lastQuestionRef.current}
+          projectName={projectName}
+          projectId={activeProject?.id}
+        />
       </>
     );
   };
